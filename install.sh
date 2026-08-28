@@ -6,6 +6,7 @@ REPO_URL="https://github.com/Just-Silver/opencode-tui-usage.git"
 XDG_BASE="${XDG_CONFIG_HOME:-$HOME/.config}"
 DEST="$XDG_BASE/opencode/plugins/tui"
 TMP="$(mktemp -d)"
+# STAGE 必须与 DEST 同文件系统才原子（非同目录/同硬盘），放 DEST 内是最简单必同 FS 的取法；固定名保证零残留，下次直接覆盖
 STAGE_ENTRY="$DEST/.tmp.opencode-tui-usage.tsx"
 STAGE_DIR="$DEST/.tmp.opencode-tui-usage"
 trap 'rm -rf "$TMP" "$STAGE_ENTRY" "$STAGE_DIR"' EXIT
@@ -45,7 +46,7 @@ SRC_DIR="$TMP/.opencode/plugins/tui/opencode-tui-usage"
 [ -f "$SRC_ENTRY" ] || { printf "${RED}未找到 $SRC_ENTRY${RESET}\n" >&2; exit 1; }
 [ -d "$SRC_DIR" ] || { printf "${RED}未找到 $SRC_DIR${RESET}\n" >&2; exit 1; }
 
-# 原子替换：先在 DEST 同文件系统内 staging，再 rename（下载/拷贝失败不丢旧版本）
+# 原子替换：先完整 cp 到同文件系统的 STAGE，再 mv；下载/staging 失败不删旧版，但插件由 tsx+目录两对象分步替换，非单次原子，切换窗口异常仍可能不完整（kill -9/断电 trap 不保证）
 cp -f "$SRC_ENTRY" "$STAGE_ENTRY"
 cp -rf "$SRC_DIR" "$STAGE_DIR"
 [ -f "$STAGE_ENTRY" ] || { printf "${RED}staging 失败: $STAGE_ENTRY${RESET}\n" >&2; exit 1; }

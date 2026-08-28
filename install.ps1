@@ -16,6 +16,7 @@ $dest = Get-GlobalTuiDir
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("opencode-tui-usage-" + [Guid]::NewGuid().ToString("N"))
 $destEntry = Join-Path $dest "opencode-tui-usage.tsx"
 $destDir = Join-Path $dest "opencode-tui-usage"
+# STAGE 必须与 dest 同文件系统才原子（非同目录/同硬盘），放 dest 内是最简单必同 FS 的取法；固定名保证零残留，下次直接覆盖
 $stageEntry = Join-Path $dest ".tmp.opencode-tui-usage.tsx"
 $stageDir = Join-Path $dest ".tmp.opencode-tui-usage"
 
@@ -54,7 +55,7 @@ try {
   if (-not (Test-Path $srcEntry)) { throw "未找到 $srcEntry" }
   if (-not (Test-Path $srcDir -PathType Container)) { throw "未找到 $srcDir" }
 
-  # 原子替换：先在 dest 同文件系统内 staging，再 Move（拷贝失败不丢旧版本）
+  # 原子替换：先完整 Copy 到同文件系统的 STAGE，再 Move；下载/staging 失败不删旧版，但插件由 tsx+目录两对象分步替换，非单次原子，切换窗口异常仍可能不完整（kill -9/断电 finally 不保证）
   Copy-Item -Force $srcEntry $stageEntry
   Copy-Item -Recurse -Force $srcDir $stageDir
   if (-not (Test-Path $stageEntry)) { throw "staging 失败：$stageEntry" }
