@@ -5,12 +5,16 @@ import { homedir } from "os"
 import { join } from "path"
 
 // ─── 可调常量（修改后重载插件生效） ─────────────────────
-// 配额 API
-const QUOTA_API_URL = "https://opencode.ai/zen/go/v1/usage"
+// 额度查询已按供应商拆分到 ./opencode-tui-usage/quota/*，统一前缀便于识别为同一插件
+import {
+  fetchQuota,
+  OPENCODE_GO_INTEGRATION,
+  PROVIDER_API_URL,
+  QUOTA_API_URL,
+  QUOTA_INTEGRATIONS,
+} from "./opencode-tui-usage/quota/index"
+import type { QuotaData, QuotaWindow } from "./opencode-tui-usage/quota/types"
 const QUOTA_REFRESH_MS = 60_000 // 配额轮询间隔
-const QUOTA_USER_AGENT = "opencode-tui-usage"
-// 数据库
-const OPENCODE_GO_INTEGRATION = "opencode-go" // 只读取该集成的凭据（防误读其他 provider）
 const OPENCODE_DATA_DIR_NAME = "opencode" // opencode 数据目录名
 const OPENCODE_DATA_DIR_REL = [".local", "share", "opencode"] // ~ 下相对路径
 const OPENCODE_DB_FILE = "opencode.db"
@@ -63,9 +67,6 @@ function ColorBar(props: { pct: number | undefined; color: string }) {
   )
 }
 
-type QuotaWindow = { status?: string; percent?: number }
-type QuotaData = { rolling?: QuotaWindow; weekly?: QuotaWindow; monthly?: QuotaWindow }
-
 // ─── 折叠区域（参考内置 opencode.sidebar.mcp 的 g8t 实现：▼/▶ 箭头、
 //      粗体标题、整行 onMouseDown 切换、折叠时显示摘要、状态持久化） ──
 const collapseState = new Map<string, boolean>()
@@ -103,34 +104,37 @@ function Collapsible(props: {
   )
 }
 
-// ─── 配额获取（防重复刷新参考 balance-view.tsx：模块级
-//      lastRefreshTime，组件重挂载时跳过非必要刷新） ──
+// ─── 配额获取（按供应商分桶：Map<providerID, QuotaData>） ──
 const keyCache = new Map<string, string>()
-let lastRefreshTime = 0
-let cachedQuota: QuotaData | undefined // 模块级配额缓存：组件重挂载时旧值仍可显示
+const quotaCache = new Map<string, QuotaData>() // 字典：providerID -> QuotaData，后续多供应商扩展
+const quotaAt = new Map<string, number>() // 字典：providerID -> 上次刷新时间戳
+const quotaInFlight = new Map<string, Promise<void>>() // 去重：同 provider 并发只发一次
 
-// 只读取 opencode-go 的 API key（TUI 进程内只读一次 DB）
-async function readOpenCodeGoKey(): Promise<string | undefined> {
-  if (keyCache.has(OPENCODE_GO_INTEGRATION)) return keyCache.get(OPENCODE_GO_INTEGRATION)
+// 通用读取：按 integrationId 读取凭据（TUI 进程内按需读 DB，命中缓存直接返回）
+async function readProviderKey(integrationId: string): Promise<string | undefined> {
+  if (keyCache.has(integrationId)) return keyCache.get(integrationId)
   try {
     const { Database } = await import("bun:sqlite")
     const base = process.env.XDG_DATA_HOME?.trim()
       ? join(process.env.XDG_DATA_HOME, OPENCODE_DATA_DIR_NAME)
       : join(homedir(), ...OPENCODE_DATA_DIR_REL)
     const db = new Database(join(base, OPENCODE_DB_FILE), { readonly: true })
-    const row = db.query(CREDENTIAL_SQL).get(OPENCODE_GO_INTEGRATION) as { value?: string } | undefined
+    const row = db.query(CREDENTIAL_SQL).get(integrationId) as { value?: string } | undefined
     db.close()
     if (!row?.value) return
     const parsed = JSON.parse(row.value)
     if (typeof parsed.key === "string") {
-      keyCache.set(OPENCODE_GO_INTEGRATION, parsed.key)
+      keyCache.set(integrationId, parsed.key)
       return parsed.key
     }
     return
-  } catch {
+  } catch (e) {
+    console.warn(`readProviderKey ${integrationId} failed: ${String(e)}`)
     return
   }
 }
+
+
 
 export default Plugin.define({
   id: "opencode-tui-usage",
@@ -208,37 +212,113 @@ export default Plugin.define({
           return Math.round((total / limit()!) * 1000) / 10
         })
 
-        // ── 配额：官方 /v1/usage（固定 opencode-go） ──
-        // 防重复刷新：模块级 lastRefreshTime 拦截 + 模块级 cachedQuota 兜底，
-        // 组件重挂载时直接复用全局缓存，无空白窗口
-        const [quota, setQuota] = createSignal<QuotaData | undefined>(cachedQuota)
-
-        async function loadQuota() {
-          if (Date.now() - lastRefreshTime < QUOTA_REFRESH_MS) return
-          lastRefreshTime = Date.now()
-          const key = await readOpenCodeGoKey()
-          if (!key) return
-          try {
-            const res = await fetch(QUOTA_API_URL, {
-              headers: { Authorization: `Bearer ${key}`, "User-Agent": QUOTA_USER_AGENT },
-            })
-            if (!res.ok) return
-            const json = (await res.json()) as { usage?: QuotaData }
-            if (json.usage) {
-              cachedQuota = json.usage // 同步全局缓存
-              setQuota(cachedQuota)
-            }
-          } catch {
-            return
+        // ── 当前会话的供应商 ID（用于按供应商分桶查询额度） ──
+        const providerID = createMemo(() => {
+          if (!sessionID) return
+          type Msg = { providerID?: string; model?: { id?: string; providerID?: string } }
+          const messages = (ctx.data.session.message.list(sessionID) ?? []) as Msg[]
+          const last = [...messages]
+            .reverse()
+            .find(
+              (m) =>
+                (typeof m?.providerID === "string" && m.providerID.length > 0) ||
+                (typeof m?.model?.providerID === "string" && m.model.providerID.length > 0) ||
+                (typeof m?.model?.id === "string" && m.model.id.length > 0),
+            )
+          const cfgModel = (ctx.state as unknown as { config?: { model?: string } })?.config?.model as string | undefined
+          const cfgPid = cfgModel && cfgModel.includes("/") ? cfgModel.split("/")[0] : undefined
+          if (!last) return cfgPid
+          if (typeof last.providerID === "string" && last.providerID.length > 0) return last.providerID
+          if (typeof last.model?.providerID === "string" && last.model.providerID.length > 0) return last.model.providerID
+          if (typeof last.model?.id === "string" && last.model.id.length > 0) {
+            const session = ctx.data.session.get(sessionID) as { location?: string } | undefined
+            const models = session?.location ? (ctx.data.location.model.list(session.location) ?? []) : []
+            const hit = (models.find((m: { id: string; providerID?: string }) => m.id === last.model!.id)?.providerID) as
+              | string
+              | undefined
+            if (hit) return hit
+            return cfgPid
           }
+          return cfgPid
+        })
+
+        // ── 配额：按 providerID 分桶，字典缓存 ──
+        const [quotaVer, setQuotaVer] = createSignal(0)
+        const quota = createMemo(() => {
+          void quotaVer()
+          const pid = providerID()
+          if (!pid) return
+          // 仅支持已配置的供应商，未配置的直接不查（后续在 QUOTA_INTEGRATIONS / PROVIDER_API_URL 追加即可）
+          if (!(QUOTA_INTEGRATIONS as readonly string[]).includes(pid) && !PROVIDER_API_URL[pid]) return
+          return quotaCache.get(pid)
+        })
+
+        async function loadQuotaFor(pid: string) {
+          if (!pid) return
+          if (!(QUOTA_INTEGRATIONS as readonly string[]).includes(pid) && !PROVIDER_API_URL[pid]) return
+          const now = Date.now()
+          if (now - (quotaAt.get(pid) ?? 0) < QUOTA_REFRESH_MS) return
+          if (quotaInFlight.has(pid)) return quotaInFlight.get(pid)
+          const p = (async () => {
+            const apiUrl = PROVIDER_API_URL[pid] ?? QUOTA_API_URL
+            const key = await readProviderKey(pid)
+            if (!key) {
+              quotaAt.set(pid, now)
+              void ctx.client.app
+                .log({
+                  body: {
+                    service: "tui-usage",
+                    level: "warn",
+                    message: `quota ${pid} missing key`,
+                  },
+                })
+                .catch(() => {})
+              return
+            }
+            try {
+              const usage = await fetchQuota(pid, apiUrl, key)
+              if (usage) {
+                quotaCache.set(pid, usage)
+                quotaAt.set(pid, now)
+                setQuotaVer((v: number) => v + 1)
+              } else {
+                quotaAt.set(pid, now)
+                void ctx.client.app
+                  .log({
+                    body: {
+                      service: "tui-usage",
+                      level: "warn",
+                      message: `quota ${pid} empty response`,
+                    },
+                  })
+                  .catch(() => {})
+              }
+            } catch (e) {
+              quotaAt.set(pid, now)
+              void ctx.client.app
+                .log({
+                  body: {
+                    service: "tui-usage",
+                    level: "error",
+                    message: `quota ${pid} fetch failed: ${String(e)}`,
+                  },
+                })
+                .catch(() => {})
+              return
+            }
+          })().finally(() => quotaInFlight.delete(pid))
+          quotaInFlight.set(pid, p)
+          await p
         }
 
-        // 首次挂载/重挂载时尝试加载（重挂载被时间戳拦截，保留旧值）
         createEffect(() => {
-          void loadQuota()
+          const pid = providerID()
+          if (pid) void loadQuotaFor(pid)
         })
-        // 轮询：每 QUOTA_REFRESH_MS 强制刷新
-        const timer = setInterval(() => void loadQuota(), QUOTA_REFRESH_MS)
+        const timer = setInterval(() => {
+          const pid = providerID()
+          if (pid) void loadQuotaFor(pid)
+        }, QUOTA_REFRESH_MS)
         onCleanup(() => clearInterval(timer))
 
         // 进度条颜色：<50% 绿 → ≥50% 黄 → ≥85% 红
