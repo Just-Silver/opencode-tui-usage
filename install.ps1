@@ -64,10 +64,10 @@ try {
   Move-Item $stageDir $destDir
 
   if (-not (Test-Path $destEntry)) { throw "安装失败：$destEntry 不存在" }
-  Write-Host "✓ 已安装到 $destEntry"
-  Write-Host "  额度模块: $destDir\quota\"
+  Write-Host "✓ 已安装到 $destEntry" -ForegroundColor Green
+  Write-Host "  额度模块: $destDir\quota\" -ForegroundColor Green
   Write-Host ""
-  Write-Host "✓ 安装完成，无需重启，TUI 自动热重载"
+  Write-Host "✓ 安装完成" -ForegroundColor Green
 } finally {
   if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue }
   if (Test-Path $stageEntry) { Remove-Item -Force $stageEntry -ErrorAction SilentlyContinue }
