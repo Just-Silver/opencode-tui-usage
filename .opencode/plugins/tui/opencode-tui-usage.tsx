@@ -332,6 +332,8 @@ export default Plugin.define({
 
         // 百分比统一显示：1 位小数（如 34.8%）
         const fmtPct = (v: number | undefined) => (v !== undefined ? `${v.toFixed(1)}%` : "")
+        // 占总量占比（百分数，1 位小数）：v / total × 100
+        const sharePct = (v: number, total: number) => (total > 0 ? fmtPct((v / total) * 100) : "")
         // 额度百分比：API 返回整数，直接显示（42%）
         const fmtPctInt = (v: number | undefined) => (v !== undefined ? `${Math.round(v)}%` : "")
 
@@ -359,24 +361,47 @@ export default Plugin.define({
                     </text>
                     <box height={1} />
                     <text wrapMode="none">
+                      <span style={{ fg: theme.text.default }}>{padLabel("总量", LABEL_COL_WIDTH)}</span>
+                      <span style={{ fg: theme.text.subdued }}>{fmtTokens(u().total)}</span>
+                    </text>
+                    <text wrapMode="none">
                       <span style={{ fg: theme.text.default }}>{padLabel("输入", LABEL_COL_WIDTH)}</span>
-                      <span style={{ fg: theme.text.subdued }}>{fmtTokens(u().input)}</span>
+                      <span style={{ fg: theme.text.subdued }}>
+                        {fmtTokens(u().input)}  {sharePct(u().input, u().total)}
+                      </span>
                     </text>
                     <text wrapMode="none">
                       <span style={{ fg: theme.text.default }}>{padLabel("输出", LABEL_COL_WIDTH)}</span>
-                      <span style={{ fg: theme.text.subdued }}>{fmtTokens(u().output)}</span>
+                      <span style={{ fg: theme.text.subdued }}>
+                        {fmtTokens(u().output)}  {sharePct(u().output, u().total)}
+                      </span>
                     </text>
                     <text wrapMode="none">
                       <span style={{ fg: theme.text.default }}>{padLabel("缓存读取", LABEL_COL_WIDTH)}</span>
                       <span style={{ fg: theme.text.subdued }}>
-                        {fmtTokens(u().read)}
-                        {cacheRate() !== undefined ? `  (${fmtPct(cacheRate())})` : ""}
+                        {fmtTokens(u().read)}  {sharePct(u().read, u().total)}
                       </span>
                     </text>
                     <text wrapMode="none">
                       <span style={{ fg: theme.text.default }}>{padLabel("缓存写入", LABEL_COL_WIDTH)}</span>
-                      <span style={{ fg: theme.text.subdued }}>{fmtTokens(u().write)}</span>
+                      <span style={{ fg: theme.text.subdued }}>
+                        {fmtTokens(u().write)}  {sharePct(u().write, u().total)}
+                      </span>
                     </text>
+                    <Show when={u().reasoning > 0}>
+                      <text wrapMode="none">
+                        <span style={{ fg: theme.text.default }}>{padLabel("推理", LABEL_COL_WIDTH)}</span>
+                        <span style={{ fg: theme.text.subdued }}>
+                          {fmtTokens(u().reasoning)}  {sharePct(u().reasoning, u().total)}
+                        </span>
+                      </text>
+                    </Show>
+                    <Show when={cacheRate() !== undefined}>
+                      <text wrapMode="none">
+                        <span style={{ fg: theme.text.default }}>{padLabel("命中率", LABEL_COL_WIDTH)}</span>
+                        <span style={{ fg: theme.text.subdued }}>{fmtPct(cacheRate())}</span>
+                      </text>
+                    </Show>
                   </box>
                 </Collapsible>
 
