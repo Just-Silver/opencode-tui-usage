@@ -400,7 +400,7 @@ export default Plugin.define({
                     </Show>
                     <Show when={cacheRate() !== undefined}>
                       <text wrapMode="none">
-                        <span style={{ fg: theme.text.default }}>{padLabel("命中率", LABEL_COL_WIDTH)}</span>
+                        <span style={{ fg: theme.text.default }}>{padLabel("缓存命中率", LABEL_COL_WIDTH)}</span>
                         <span style={{ fg: theme.text.subdued }}>{fmtPct(cacheRate()).padEnd(6)}</span>
                       </text>
                     </Show>
