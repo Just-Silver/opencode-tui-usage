@@ -23,8 +23,7 @@ export const fetchers: Record<string, (apiUrl: string, key: string) => Promise<Q
 export async function fetchQuota(pid: string, apiUrl: string, key: string): Promise<QuotaData | undefined> {
   const fn = fetchers[pid]
   if (fn) return fn(apiUrl, key)
-  // 未注册 fetcher 的供应商，默认走 opencode-go 协议（便于快速接入）
-  return fetchOpencodeGo(apiUrl, key)
+  return undefined
 }
 
 export type { QuotaData, QuotaWindow } from "./types"

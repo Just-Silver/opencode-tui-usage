@@ -225,9 +225,7 @@ export default Plugin.define({
                 (typeof m?.model?.providerID === "string" && m.model.providerID.length > 0) ||
                 (typeof m?.model?.id === "string" && m.model.id.length > 0),
             )
-          const cfgModel = (ctx.state as unknown as { config?: { model?: string } })?.config?.model as string | undefined
-          const cfgPid = cfgModel && cfgModel.includes("/") ? cfgModel.split("/")[0] : undefined
-          if (!last) return cfgPid
+          if (!last) return undefined
           if (typeof last.providerID === "string" && last.providerID.length > 0) return last.providerID
           if (typeof last.model?.providerID === "string" && last.model.providerID.length > 0) return last.model.providerID
           if (typeof last.model?.id === "string" && last.model.id.length > 0) {
@@ -237,9 +235,9 @@ export default Plugin.define({
               | string
               | undefined
             if (hit) return hit
-            return cfgPid
+            return undefined
           }
-          return cfgPid
+          return undefined
         })
 
         // ── 配额：按 providerID 分桶，字典缓存 ──

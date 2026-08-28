@@ -7,15 +7,13 @@ export async function fetchOpencodeGo(apiUrl: string, key: string): Promise<Quot
     headers: { Authorization: `Bearer ${key}`, "User-Agent": QUOTA_USER_AGENT },
   })
   if (!res.ok) {
-    console.warn(`quota opencode-go fetch failed: ${res.status} ${res.statusText}`)
-    return
+    throw new Error(`quota ${res.status} ${res.statusText}`)
   }
   let json: { usage?: QuotaData }
   try {
     json = (await res.json()) as { usage?: QuotaData }
   } catch (e) {
-    console.warn(`quota opencode-go json parse failed: ${String(e)}`)
-    return
+    throw new Error(`quota json parse failed: ${String(e)}`)
   }
   return json.usage
 }
