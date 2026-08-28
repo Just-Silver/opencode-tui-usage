@@ -26,7 +26,7 @@ const PCT_ERROR_THRESHOLD = 85 // ≥85% 变红
 const CONTENT_INDENT = 2 // 折叠内容缩进
 const ARROW_COLOR = "#888" // 折叠箭头/摘要颜色
 // 区块标题与窗口标签
-const SECTION_CACHE_TITLE = "缓存"
+const SECTION_CACHE_TITLE = "会话"
 const SECTION_QUOTA_TITLE = "额度"
 const QUOTA_LABELS = ["5h", "周", "月"] as const
 
@@ -339,7 +339,7 @@ export default Plugin.define({
                   arrowColor={ARROW_COLOR}
                   titleColor={theme.text.default}
                   summaryColor={theme.text.subdued}
-                  summary={<span>（{ctxPct() !== undefined ? fmtPct(ctxPct()) : fmtTokens(u().total)}）</span>}
+                  summary={<span>（{fmtTokens(u().total)}）</span>}
                 >
                   <box flexDirection="column" gap={0}>
                     <text fg={theme.text.default}>上下文</text>
