@@ -23,7 +23,7 @@ const CREDENTIAL_SQL = "SELECT value FROM credential WHERE integration_id = ?"
 const PCT_WARN_THRESHOLD = 50 // ≥50% 变黄
 const PCT_ERROR_THRESHOLD = 85 // ≥85% 变红
 // 布局
-const CONTENT_INDENT = 2 // 折叠内容缩进
+const CONTENT_INDENT = 0 // 折叠内容缩进
 const ARROW_COLOR = "#888" // 折叠箭头/摘要颜色
 // 区块标题与窗口标签
 const SECTION_CACHE_TITLE = "会话"
