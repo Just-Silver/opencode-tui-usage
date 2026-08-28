@@ -16,6 +16,8 @@ $dest = Get-GlobalTuiDir
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("opencode-tui-usage-" + [Guid]::NewGuid().ToString("N"))
 $destEntry = Join-Path $dest "opencode-tui-usage.tsx"
 $destDir = Join-Path $dest "opencode-tui-usage"
+$stageEntry = Join-Path $dest ".tmp.opencode-tui-usage.tsx"
+$stageDir = Join-Path $dest ".tmp.opencode-tui-usage"
 
 try {
   Write-Host "→ 目标目录: $dest"
@@ -52,20 +54,22 @@ try {
   if (-not (Test-Path $srcEntry)) { throw "未找到 $srcEntry" }
   if (-not (Test-Path $srcDir -PathType Container)) { throw "未找到 $srcDir" }
 
-  # 验证通过后再替换旧版本（原子安装）
-  if (Test-Path $destEntry) { Remove-Item -Force $destEntry }
+  # 原子替换：先在 dest 同文件系统内 staging，再 Move（拷贝失败不丢旧版本）
+  Copy-Item -Force $srcEntry $stageEntry
+  Copy-Item -Recurse -Force $srcDir $stageDir
+  if (-not (Test-Path $stageEntry)) { throw "staging 失败：$stageEntry" }
+  if (-not (Test-Path $stageDir -PathType Container)) { throw "staging 失败：$stageDir" }
+  Move-Item -Force $stageEntry $destEntry
   if (Test-Path $destDir) { Remove-Item -Recurse -Force $destDir }
-
-  Copy-Item -Force $srcEntry $destEntry
-  Copy-Item -Recurse -Force $srcDir $destDir
+  Move-Item $stageDir $destDir
 
   if (-not (Test-Path $destEntry)) { throw "安装失败：$destEntry 不存在" }
   Write-Host "✓ 已安装到 $destEntry"
   Write-Host "  额度模块: $destDir\quota\"
-
   Write-Host ""
-  Write-Host "下一步: opencode2 service restart && opencode"
-  Write-Host "日志: ~/.local/share/opencode/log/opencode.log (service:tui-usage)"
+  Write-Host "✓ 安装完成，无需重启，TUI 自动热重载"
 } finally {
   if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue }
+  if (Test-Path $stageEntry) { Remove-Item -Force $stageEntry -ErrorAction SilentlyContinue }
+  if (Test-Path $stageDir) { Remove-Item -Recurse -Force $stageDir -ErrorAction SilentlyContinue }
 }

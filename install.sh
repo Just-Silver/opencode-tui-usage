@@ -6,7 +6,9 @@ REPO_URL="https://github.com/Just-Silver/opencode-tui-usage.git"
 XDG_BASE="${XDG_CONFIG_HOME:-$HOME/.config}"
 DEST="$XDG_BASE/opencode/plugins/tui"
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+STAGE_ENTRY="$DEST/.tmp.opencode-tui-usage.tsx"
+STAGE_DIR="$DEST/.tmp.opencode-tui-usage"
+trap 'rm -rf "$TMP" "$STAGE_ENTRY" "$STAGE_DIR"' EXIT
 
 echo "→ 目标目录: $DEST"
 mkdir -p "$DEST"
@@ -36,15 +38,17 @@ SRC_DIR="$TMP/.opencode/plugins/tui/opencode-tui-usage"
 [ -f "$SRC_ENTRY" ] || { echo "未找到 $SRC_ENTRY"; exit 1; }
 [ -d "$SRC_DIR" ] || { echo "未找到 $SRC_DIR"; exit 1; }
 
-# 验证通过后再替换旧版本（原子安装：下载失败不影响现有插件）
-rm -rf "$DEST/opencode-tui-usage.tsx" "$DEST/opencode-tui-usage"
-cp -f "$SRC_ENTRY" "$DEST/opencode-tui-usage.tsx"
-cp -rf "$SRC_DIR" "$DEST/opencode-tui-usage"
+# 原子替换：先在 DEST 同文件系统内 staging，再 rename（下载/拷贝失败不丢旧版本）
+cp -f "$SRC_ENTRY" "$STAGE_ENTRY"
+cp -rf "$SRC_DIR" "$STAGE_DIR"
+[ -f "$STAGE_ENTRY" ] || { echo "staging 失败: $STAGE_ENTRY"; exit 1; }
+[ -d "$STAGE_DIR" ] || { echo "staging 失败: $STAGE_DIR"; exit 1; }
+mv -f "$STAGE_ENTRY" "$DEST/opencode-tui-usage.tsx"
+rm -rf "$DEST/opencode-tui-usage"
+mv "$STAGE_DIR" "$DEST/opencode-tui-usage"
 
 [ -f "$DEST/opencode-tui-usage.tsx" ] || { echo "安装失败"; exit 1; }
 echo "✓ 已安装到 $DEST/opencode-tui-usage.tsx"
 echo "  额度模块: $DEST/opencode-tui-usage/quota/"
-
 echo ""
-echo "下一步: opencode2 service restart && opencode"
-echo "日志: ~/.local/share/opencode/log/opencode.log (service:tui-usage)"
+echo "✓ 安装完成，无需重启，TUI 自动热重载"

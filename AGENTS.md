@@ -8,7 +8,7 @@
 
 # 运行与验证
 - 本地 `Bun 1.3.14`，`TUI` 依赖 `bun:sqlite` 读 `~/.local/share/opencode/opencode.db`
-- 热重载：`B/~BUN/root/chunk-*.js?mtime` 内存打包，改名= `unlink+add` 需 `opencode2 service restart && opencode`，否则 `Cannot find module ...?mtime`
+- 热重载：`B/~BUN/root/chunk-*.js?mtime` 内存打包，同名覆盖自动热重载（无需重启）；仅重命名/新增/删除（`unlink+add`）需 `opencode2 service restart && opencode`，否则 `Cannot find module ...?mtime`
 - 日志：`ctx.client.app.log({service:"tui-usage"})` 落 `~/.local/share/opencode/log/opencode.log`，`console.warn` 双写已统一为 `app.log` 单通道，失败统一 `60s` 限流不重试
 - 校验：无 `npm test`；改后 `bun build <entry> --target bun` 仅缺 `@opencode-ai/plugin/tui` 预期错即算语法通过，`opencode` 启动侧边栏无 `sidebar.content` 崩溃即正常
 
