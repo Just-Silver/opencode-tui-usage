@@ -10,7 +10,6 @@ trap 'rm -rf "$TMP"' EXIT
 
 echo "→ 目标目录: $DEST"
 mkdir -p "$DEST"
-rm -rf "$DEST/opencode-tui-usage.tsx" "$DEST/opencode-tui-usage"
 
 cloned=0
 if command -v git >/dev/null 2>&1; then
@@ -19,7 +18,8 @@ if command -v git >/dev/null 2>&1; then
     cloned=1
   else
     echo "warn: git clone 失败，尝试 curl 回退" >&2
-    rm -rf "$TMP"/* 2>/dev/null || true
+    rm -rf "$TMP"
+    mkdir -p "$TMP"
   fi
 fi
 
@@ -34,7 +34,10 @@ fi
 SRC_ENTRY="$TMP/.opencode/plugins/tui/opencode-tui-usage.tsx"
 SRC_DIR="$TMP/.opencode/plugins/tui/opencode-tui-usage"
 [ -f "$SRC_ENTRY" ] || { echo "未找到 $SRC_ENTRY"; exit 1; }
+[ -d "$SRC_DIR" ] || { echo "未找到 $SRC_DIR"; exit 1; }
 
+# 验证通过后再替换旧版本（原子安装：下载失败不影响现有插件）
+rm -rf "$DEST/opencode-tui-usage.tsx" "$DEST/opencode-tui-usage"
 cp -f "$SRC_ENTRY" "$DEST/opencode-tui-usage.tsx"
 cp -rf "$SRC_DIR" "$DEST/opencode-tui-usage"
 
