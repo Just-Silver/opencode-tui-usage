@@ -80,7 +80,7 @@ function Collapsible(props: {
     })
   }
   return (
-    <box flexDirection="column" gap={0}>
+    <box flexDirection="column" gap={1}>
       <box flexDirection="row" gap={1} onMouseDown={toggle}>
         <text fg={props.arrowColor}>{() => (isOpen() ? "▼" : "▶")}</text>
         <text fg={props.titleColor}>
@@ -352,56 +352,50 @@ export default Plugin.define({
                       {limit() ? ` / ${fmtTokens(limit()!)}` : ""}
                       {ctxPct() !== undefined ? `  (${fmtPct(ctxPct())})` : ""}
                     </text>
-                    <box height={1} />
                     <box flexDirection="row" gap={1}>
                       <text fg={theme.text.default}>总量</text>
                       <box flexGrow={1} />
-                      <text fg={theme.text.subdued}>{fmtTokens(u().total)}</text>
+                      <text width={10} fg={theme.text.subdued}>{fmtTokens(u().total)}</text>
                     </box>
                     <box flexDirection="row" gap={1}>
                       <text fg={theme.text.default}>输入</text>
                       <box flexGrow={1} />
-                      <text fg={theme.text.subdued}>
-                        {fmtTokens(u().input)}  ({sharePct(u().input, u().total)})
-                      </text>
+                      <text width={10} fg={theme.text.subdued}>{fmtTokens(u().input)}</text>
+                      <text width={8} fg={theme.text.subdued}>({sharePct(u().input, u().total)})</text>
                     </box>
                     <box flexDirection="row" gap={1}>
                       <text fg={theme.text.default}>输出</text>
                       <box flexGrow={1} />
-                      <text fg={theme.text.subdued}>
-                        {fmtTokens(u().output)}  ({sharePct(u().output, u().total)})
-                      </text>
+                      <text width={10} fg={theme.text.subdued}>{fmtTokens(u().output)}</text>
+                      <text width={8} fg={theme.text.subdued}>({sharePct(u().output, u().total)})</text>
                     </box>
                     <box flexDirection="row" gap={1}>
                       <text fg={theme.text.default}>缓存读取</text>
                       <box flexGrow={1} />
-                      <text fg={theme.text.subdued}>
-                        {fmtTokens(u().read)}  ({sharePct(u().read, u().total)})
-                      </text>
+                      <text width={10} fg={theme.text.subdued}>{fmtTokens(u().read)}</text>
+                      <text width={8} fg={theme.text.subdued}>({sharePct(u().read, u().total)})</text>
                     </box>
                     <Show when={u().write > 0}>
                       <box flexDirection="row" gap={1}>
                         <text fg={theme.text.default}>缓存写入</text>
                         <box flexGrow={1} />
-                        <text fg={theme.text.subdued}>
-                          {fmtTokens(u().write)}  ({sharePct(u().write, u().total)})
-                        </text>
+                        <text width={10} fg={theme.text.subdued}>{fmtTokens(u().write)}</text>
+                        <text width={8} fg={theme.text.subdued}>({sharePct(u().write, u().total)})</text>
                       </box>
                     </Show>
                     <Show when={u().reasoning > 0}>
                       <box flexDirection="row" gap={1}>
                         <text fg={theme.text.default}>推理</text>
                         <box flexGrow={1} />
-                        <text fg={theme.text.subdued}>
-                          {fmtTokens(u().reasoning)}  ({sharePct(u().reasoning, u().total)})
-                        </text>
+                        <text width={10} fg={theme.text.subdued}>{fmtTokens(u().reasoning)}</text>
+                        <text width={8} fg={theme.text.subdued}>({sharePct(u().reasoning, u().total)})</text>
                       </box>
                     </Show>
                     <Show when={cacheRate() !== undefined}>
                       <box flexDirection="row" gap={1}>
                         <text fg={theme.text.default}>缓存命中率</text>
                         <box flexGrow={1} />
-                        <text fg={theme.text.subdued}>{fmtPct(cacheRate())}</text>
+                        <text width={10} fg={theme.text.subdued}>{fmtPct(cacheRate())}</text>
                       </box>
                     </Show>
                   </box>
