@@ -23,7 +23,6 @@ const CREDENTIAL_SQL = "SELECT value FROM credential WHERE integration_id = ?"
 const PCT_WARN_THRESHOLD = 50 // ≥50% 变黄
 const PCT_ERROR_THRESHOLD = 85 // ≥85% 变红
 // 布局
-const LABEL_COL_WIDTH = 10 // 数据行 label 对齐列宽
 const CONTENT_INDENT = 2 // 折叠内容缩进
 const ARROW_COLOR = "#888" // 折叠箭头/摘要颜色
 // 区块标题与窗口标签
@@ -45,12 +44,6 @@ function fmtTokens(v: number): string {
 }
 function trimZero(s: string): string {
   return s.replace(/\.0$/, "")
-}
-
-// 按显示宽度补空格（中文占 2 列），让值列对齐
-function padLabel(s: string, width: number): string {
-  const disp = [...s].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 2 : 1), 0)
-  return s + " ".repeat(Math.max(0, width - disp))
 }
 
 // 官方渲染方式的进度条：OpenTUI box 背景色块 + flexGrow 比例填充
@@ -360,49 +353,56 @@ export default Plugin.define({
                       {ctxPct() !== undefined ? `  (${fmtPct(ctxPct())})` : ""}
                     </text>
                     <box height={1} />
-                    <text wrapMode="none">
-                      <span style={{ fg: theme.text.default }}>{padLabel("总量", LABEL_COL_WIDTH)}</span>
-                      <span style={{ fg: theme.text.subdued }}>{fmtTokens(u().total).padEnd(6)}</span>
-                    </text>
-                    <text wrapMode="none">
-                      <span style={{ fg: theme.text.default }}>{padLabel("输入", LABEL_COL_WIDTH)}</span>
-                      <span style={{ fg: theme.text.subdued }}>
-                        {fmtTokens(u().input).padEnd(6)}  ({sharePct(u().input, u().total)})
-                      </span>
-                    </text>
-                    <text wrapMode="none">
-                      <span style={{ fg: theme.text.default }}>{padLabel("输出", LABEL_COL_WIDTH)}</span>
-                      <span style={{ fg: theme.text.subdued }}>
-                        {fmtTokens(u().output).padEnd(6)}  ({sharePct(u().output, u().total)})
-                      </span>
-                    </text>
-                    <text wrapMode="none">
-                      <span style={{ fg: theme.text.default }}>{padLabel("缓存读取", LABEL_COL_WIDTH)}</span>
-                      <span style={{ fg: theme.text.subdued }}>
-                        {fmtTokens(u().read).padEnd(6)}  ({sharePct(u().read, u().total)})
-                      </span>
-                    </text>
-                    <Show when={u().write > 0}>
-                      <text wrapMode="none">
-                        <span style={{ fg: theme.text.default }}>{padLabel("缓存写入", LABEL_COL_WIDTH)}</span>
-                        <span style={{ fg: theme.text.subdued }}>
-                          {fmtTokens(u().write).padEnd(6)}  ({sharePct(u().write, u().total)})
-                        </span>
+                    <box flexDirection="row" gap={1}>
+                      <text fg={theme.text.default}>总量</text>
+                      <box flexGrow={1} />
+                      <text fg={theme.text.subdued}>{fmtTokens(u().total)}</text>
+                    </box>
+                    <box flexDirection="row" gap={1}>
+                      <text fg={theme.text.default}>输入</text>
+                      <box flexGrow={1} />
+                      <text fg={theme.text.subdued}>
+                        {fmtTokens(u().input)}  ({sharePct(u().input, u().total)})
                       </text>
+                    </box>
+                    <box flexDirection="row" gap={1}>
+                      <text fg={theme.text.default}>输出</text>
+                      <box flexGrow={1} />
+                      <text fg={theme.text.subdued}>
+                        {fmtTokens(u().output)}  ({sharePct(u().output, u().total)})
+                      </text>
+                    </box>
+                    <box flexDirection="row" gap={1}>
+                      <text fg={theme.text.default}>缓存读取</text>
+                      <box flexGrow={1} />
+                      <text fg={theme.text.subdued}>
+                        {fmtTokens(u().read)}  ({sharePct(u().read, u().total)})
+                      </text>
+                    </box>
+                    <Show when={u().write > 0}>
+                      <box flexDirection="row" gap={1}>
+                        <text fg={theme.text.default}>缓存写入</text>
+                        <box flexGrow={1} />
+                        <text fg={theme.text.subdued}>
+                          {fmtTokens(u().write)}  ({sharePct(u().write, u().total)})
+                        </text>
+                      </box>
                     </Show>
                     <Show when={u().reasoning > 0}>
-                      <text wrapMode="none">
-                        <span style={{ fg: theme.text.default }}>{padLabel("推理", LABEL_COL_WIDTH)}</span>
-                        <span style={{ fg: theme.text.subdued }}>
-                          {fmtTokens(u().reasoning).padEnd(6)}  ({sharePct(u().reasoning, u().total)})
-                        </span>
-                      </text>
+                      <box flexDirection="row" gap={1}>
+                        <text fg={theme.text.default}>推理</text>
+                        <box flexGrow={1} />
+                        <text fg={theme.text.subdued}>
+                          {fmtTokens(u().reasoning)}  ({sharePct(u().reasoning, u().total)})
+                        </text>
+                      </box>
                     </Show>
                     <Show when={cacheRate() !== undefined}>
-                      <text wrapMode="none">
-                        <span style={{ fg: theme.text.default }}>{padLabel("缓存命中率", LABEL_COL_WIDTH)}</span>
-                        <span style={{ fg: theme.text.subdued }}>{fmtPct(cacheRate()).padEnd(6)}</span>
-                      </text>
+                      <box flexDirection="row" gap={1}>
+                        <text fg={theme.text.default}>缓存命中率</text>
+                        <box flexGrow={1} />
+                        <text fg={theme.text.subdued}>{fmtPct(cacheRate())}</text>
+                      </box>
                     </Show>
                   </box>
                 </Collapsible>
