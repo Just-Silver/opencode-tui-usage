@@ -356,6 +356,7 @@ export default Plugin.define({
                       <text fg={theme.text.default}>总量</text>
                       <box flexGrow={1} />
                       <text width={10} fg={theme.text.subdued}>{fmtTokens(u().total)}</text>
+                      <text width={8} />
                     </box>
                     <box flexDirection="row" gap={1}>
                       <text fg={theme.text.default}>输入</text>
@@ -396,6 +397,7 @@ export default Plugin.define({
                         <text fg={theme.text.default}>缓存命中率</text>
                         <box flexGrow={1} />
                         <text width={10} fg={theme.text.subdued}>{fmtPct(cacheRate())}</text>
+                        <text width={8} />
                       </box>
                     </Show>
                   </box>
