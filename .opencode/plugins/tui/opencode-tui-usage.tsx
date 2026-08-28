@@ -362,31 +362,31 @@ export default Plugin.define({
                     <box height={1} />
                     <text wrapMode="none">
                       <span style={{ fg: theme.text.default }}>{padLabel("总量", LABEL_COL_WIDTH)}</span>
-                      <span style={{ fg: theme.text.subdued }}>{fmtTokens(u().total)}</span>
+                      <span style={{ fg: theme.text.subdued }}>{fmtTokens(u().total).padEnd(6)}</span>
                     </text>
                     <text wrapMode="none">
                       <span style={{ fg: theme.text.default }}>{padLabel("输入", LABEL_COL_WIDTH)}</span>
                       <span style={{ fg: theme.text.subdued }}>
-                        {fmtTokens(u().input)}  ({sharePct(u().input, u().total)})
+                        {fmtTokens(u().input).padEnd(6)}  ({sharePct(u().input, u().total)})
                       </span>
                     </text>
                     <text wrapMode="none">
                       <span style={{ fg: theme.text.default }}>{padLabel("输出", LABEL_COL_WIDTH)}</span>
                       <span style={{ fg: theme.text.subdued }}>
-                        {fmtTokens(u().output)}  ({sharePct(u().output, u().total)})
+                        {fmtTokens(u().output).padEnd(6)}  ({sharePct(u().output, u().total)})
                       </span>
                     </text>
                     <text wrapMode="none">
                       <span style={{ fg: theme.text.default }}>{padLabel("缓存读取", LABEL_COL_WIDTH)}</span>
                       <span style={{ fg: theme.text.subdued }}>
-                        {fmtTokens(u().read)}  ({sharePct(u().read, u().total)})
+                        {fmtTokens(u().read).padEnd(6)}  ({sharePct(u().read, u().total)})
                       </span>
                     </text>
                     <Show when={u().write > 0}>
                       <text wrapMode="none">
                         <span style={{ fg: theme.text.default }}>{padLabel("缓存写入", LABEL_COL_WIDTH)}</span>
                         <span style={{ fg: theme.text.subdued }}>
-                          {fmtTokens(u().write)}  ({sharePct(u().write, u().total)})
+                          {fmtTokens(u().write).padEnd(6)}  ({sharePct(u().write, u().total)})
                         </span>
                       </text>
                     </Show>
@@ -394,14 +394,14 @@ export default Plugin.define({
                       <text wrapMode="none">
                         <span style={{ fg: theme.text.default }}>{padLabel("推理", LABEL_COL_WIDTH)}</span>
                         <span style={{ fg: theme.text.subdued }}>
-                          {fmtTokens(u().reasoning)}  ({sharePct(u().reasoning, u().total)})
+                          {fmtTokens(u().reasoning).padEnd(6)}  ({sharePct(u().reasoning, u().total)})
                         </span>
                       </text>
                     </Show>
                     <Show when={cacheRate() !== undefined}>
                       <text wrapMode="none">
                         <span style={{ fg: theme.text.default }}>{padLabel("命中率", LABEL_COL_WIDTH)}</span>
-                        <span style={{ fg: theme.text.subdued }}>{fmtPct(cacheRate())}</span>
+                        <span style={{ fg: theme.text.subdued }}>{fmtPct(cacheRate()).padEnd(6)}</span>
                       </text>
                     </Show>
                   </box>
