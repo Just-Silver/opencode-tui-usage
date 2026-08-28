@@ -13,5 +13,9 @@ echo "→ 目标目录: $DEST"
 for p in "$DEST/opencode-tui-usage.tsx" "$DEST/opencode-tui-usage"; do
   if [ -e "$p" ]; then rm -rf "$p"; printf "${GREEN}✓ 已删除 $p${RESET}\n"; else printf "${YELLOW}- 未找到 $p${RESET}\n"; fi
 done
+# 清理异常中断可能残留的 STAGE（安装脚本的临时对象）
+for p in "$DEST/.tmp.opencode-tui-usage.tsx" "$DEST/.tmp.opencode-tui-usage"; do
+  if [ -e "$p" ]; then rm -rf "$p"; printf "${GREEN}✓ 已删除残留 $p${RESET}\n"; fi
+done
 echo ""
 echo "下一步: opencode2 service restart"

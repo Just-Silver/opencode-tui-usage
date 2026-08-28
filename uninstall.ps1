@@ -12,5 +12,9 @@ $entry = Join-Path $dest "opencode-tui-usage.tsx"
 $dir = Join-Path $dest "opencode-tui-usage"
 if (Test-Path $entry) { Remove-Item -Force $entry; Write-Host "✓ 已删除 $entry" -ForegroundColor Green } else { Write-Host "- 未找到 $entry" -ForegroundColor Yellow }
 if (Test-Path $dir) { Remove-Item -Recurse -Force $dir; Write-Host "✓ 已删除 $dir" -ForegroundColor Green } else { Write-Host "- 未找到 $dir" -ForegroundColor Yellow }
+# 清理异常中断可能残留的 STAGE（安装脚本的临时对象）
+foreach ($p in @("$dest\.tmp.opencode-tui-usage.tsx", "$dest\.tmp.opencode-tui-usage")) {
+  if (Test-Path $p) { Remove-Item -Recurse -Force $p; Write-Host "✓ 已删除残留 $p" -ForegroundColor Green }
+}
 Write-Host ""
 Write-Host "下一步: opencode2 service restart"

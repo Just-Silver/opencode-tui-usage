@@ -3,7 +3,8 @@
 # 用法: irm https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main/install.ps1 | iex
 $ErrorActionPreference = "Stop"
 $RepoUrl = "https://github.com/Just-Silver/opencode-tui-usage.git"
-$RawBase = "https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main"
+# archive 端点不接受 .git 后缀（实测 404），独立变量避免与 clone URL 混用
+$ArchiveUrl = "https://github.com/Just-Silver/opencode-tui-usage/archive/main.tar.gz"
 
 function Get-GlobalTuiDir {
   $base = if ($env:XDG_CONFIG_HOME -and $env:XDG_CONFIG_HOME.Trim()) { $env:XDG_CONFIG_HOME } else { Join-Path $HOME ".config" }
@@ -16,7 +17,7 @@ $dest = Get-GlobalTuiDir
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("opencode-tui-usage-" + [Guid]::NewGuid().ToString("N"))
 $destEntry = Join-Path $dest "opencode-tui-usage.tsx"
 $destDir = Join-Path $dest "opencode-tui-usage"
-# STAGE 必须与 dest 同文件系统才原子（非同目录/同硬盘），放 dest 内是最简单必同 FS 的取法；固定名保证零残留，下次直接覆盖
+# STAGE 必须与 dest 同文件系统才原子（同目录必同 FS），放 dest 内是最简单取法；固定名+复制前先清理，异常残留也不影响下次
 $stageEntry = Join-Path $dest ".tmp.opencode-tui-usage.tsx"
 $stageDir = Join-Path $dest ".tmp.opencode-tui-usage"
 
@@ -38,12 +39,12 @@ try {
   }
 
   if (-not $cloned) {
-    if (-not (Test-Command curl)) { throw "需要 git 或 curl 之一" }
+    if (-not (Test-Command curl.exe)) { throw "需要 git 或 curl 之一" }
     if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue }
     New-Item -ItemType Directory -Force -Path $tmp | Out-Null
     $tar = Join-Path $tmp "archive.tar.gz"
-    Write-Host "→ curl $RepoUrl/archive/main.tar.gz"
-    curl -fsSL "$RepoUrl/archive/main.tar.gz" -o $tar 2>&1 | Out-Null
+    Write-Host "→ curl.exe $ArchiveUrl"
+    curl.exe -fsSL "$ArchiveUrl" -o $tar 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "curl 下载失败 (exit $LASTEXITCODE)" }
     tar -xzf $tar -C $tmp --strip-components=1 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "tar 解压失败 (exit $LASTEXITCODE)" }
@@ -56,6 +57,9 @@ try {
   if (-not (Test-Path $srcDir -PathType Container)) { throw "未找到 $srcDir" }
 
   # 原子替换：先完整 Copy 到同文件系统的 STAGE，再 Move；下载/staging 失败不删旧版，但插件由 tsx+目录两对象分步替换，非单次原子，切换窗口异常仍可能不完整（kill -9/断电 finally 不保证）
+  # STAGE 若残留（上次 kill -9/断电），Copy-Item -Recurse 会嵌套复制而非覆盖，故复制前先清理
+  Remove-Item -Force $stageEntry -ErrorAction SilentlyContinue
+  Remove-Item -Recurse -Force $stageDir -ErrorAction SilentlyContinue
   Copy-Item -Force $srcEntry $stageEntry
   Copy-Item -Recurse -Force $srcDir $stageDir
   if (-not (Test-Path $stageEntry)) { throw "staging 失败：$stageEntry" }
