@@ -1,0 +1,18 @@
+{
+  // 行注释：JSONC 官方允许格式
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "deepseek": {
+      "package": "@opencode-ai/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://api.deepseek.com/v1",
+        "apiKey": "sk-ds-test-0000",
+      }, // 尾逗号 + 行注释
+    },
+    /* 块注释：无 apiKey 的 provider */
+    "vertex": {
+      "package": "@opencode-ai/ai/providers/google-vertex",
+      "settings": {},
+    },
+  },
+}

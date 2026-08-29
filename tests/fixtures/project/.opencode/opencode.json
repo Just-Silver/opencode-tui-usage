@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "opencode-go": {
+      "npm": "@ai-sdk/openai-compatible",
+      "api": "https://opencode.ai/zen/go/v1",
+      "options": {
+        "apiKey": "oc-v1-test-key-0000"
+      }
+    },
+    "azure-cognitive-services": {
+      "npm": "@ai-sdk/azure",
+      "options": {}
+    }
+  }
+}

@@ -1,24 +1,18 @@
 /** @jsxImportSource @opentui/solid */
 import { Plugin, usePlugin } from "@opencode-ai/plugin/tui"
 import { createEffect, createMemo, createSignal, onCleanup, Show, type JSX } from "solid-js"
-import { homedir } from "os"
-import { join } from "path"
 
 // ─── 可调常量（修改后重载插件生效） ─────────────────────
 // 额度查询已按供应商拆分到 ./opencode-tui-usage/quota/*，统一前缀便于识别为同一插件
 import {
   fetchQuota,
-  OPENCODE_GO_INTEGRATION,
+  isQuotaProvider,
   PROVIDER_API_URL,
   QUOTA_API_URL,
-  QUOTA_INTEGRATIONS,
 } from "./opencode-tui-usage/quota/index"
 import type { QuotaData, QuotaWindow } from "./opencode-tui-usage/quota/types"
+import { resolveProviderKey } from "./opencode-tui-usage/quota/key"
 const QUOTA_REFRESH_MS = 60_000 // 配额轮询间隔
-const OPENCODE_DATA_DIR_NAME = "opencode" // opencode 数据目录名
-const OPENCODE_DATA_DIR_REL = [".local", "share", "opencode"] // ~ 下相对路径
-const OPENCODE_DB_FILE = "opencode.db"
-const CREDENTIAL_SQL = "SELECT value FROM credential WHERE integration_id = ?"
 // 进度条颜色阈值（上下文占用 / 配额占比）
 const PCT_WARN_THRESHOLD = 50 // ≥50% 变黄
 const PCT_ERROR_THRESHOLD = 85 // ≥85% 变红
@@ -98,34 +92,10 @@ function Collapsible(props: {
 }
 
 // ─── 配额获取（按供应商分桶：Map<providerID, QuotaData>） ──
-const keyCache = new Map<string, string>()
+// 凭据解析已收拢到 ./opencode-tui-usage/quota/key 的 resolveProviderKey（配置优先、DB 兜底）
 const quotaCache = new Map<string, QuotaData>() // 字典：providerID -> QuotaData，后续多供应商扩展
 const quotaAt = new Map<string, number>() // 字典：providerID -> 上次刷新时间戳
 const quotaInFlight = new Map<string, Promise<void>>() // 去重：同 provider 并发只发一次
-
-// 通用读取：按 integrationId 读取凭据（TUI 进程内按需读 DB，命中缓存直接返回）
-async function readProviderKey(integrationId: string): Promise<string | undefined> {
-  if (keyCache.has(integrationId)) return keyCache.get(integrationId)
-  try {
-    const { Database } = await import("bun:sqlite")
-    const base = process.env.XDG_DATA_HOME?.trim()
-      ? join(process.env.XDG_DATA_HOME, OPENCODE_DATA_DIR_NAME)
-      : join(homedir(), ...OPENCODE_DATA_DIR_REL)
-    const db = new Database(join(base, OPENCODE_DB_FILE), { readonly: true })
-    const row = db.query(CREDENTIAL_SQL).get(integrationId) as { value?: string } | undefined
-    db.close()
-    if (!row?.value) return
-    const parsed = JSON.parse(row.value)
-    if (typeof parsed.key === "string") {
-      keyCache.set(integrationId, parsed.key)
-      return parsed.key
-    }
-    return
-  } catch (e) {
-    console.warn(`readProviderKey ${integrationId} failed: ${String(e)}`)
-    return
-  }
-}
 
 
 
@@ -239,20 +209,20 @@ export default Plugin.define({
           void quotaVer()
           const pid = providerID()
           if (!pid) return
-          // 仅支持已配置的供应商，未配置的直接不查（后续在 QUOTA_INTEGRATIONS / PROVIDER_API_URL 追加即可）
-          if (!(QUOTA_INTEGRATIONS as readonly string[]).includes(pid) && !PROVIDER_API_URL[pid]) return
+          // 白名单守卫：pid 任意写法，经 isQuotaProvider 归一化匹配（opencode-go / opencodego / opencode_go...）
+          if (!isQuotaProvider(pid)) return
           return quotaCache.get(pid)
         })
 
         async function loadQuotaFor(pid: string) {
           if (!pid) return
-          if (!(QUOTA_INTEGRATIONS as readonly string[]).includes(pid) && !PROVIDER_API_URL[pid]) return
+          if (!isQuotaProvider(pid)) return
           const now = Date.now()
           if (now - (quotaAt.get(pid) ?? 0) < QUOTA_REFRESH_MS) return
           if (quotaInFlight.has(pid)) return quotaInFlight.get(pid)
           const p = (async () => {
             const apiUrl = PROVIDER_API_URL[pid] ?? QUOTA_API_URL
-            const key = await readProviderKey(pid)
+            const key = await resolveProviderKey(pid)
             if (!key) {
               quotaAt.set(pid, now)
               void ctx.client.app

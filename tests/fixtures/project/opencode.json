@@ -1,0 +1,38 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode-go/opencode-1",
+  "providers": {
+    "opencode-go": {
+      "package": "@opencode-ai/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://opencode.ai/zen/go/v1",
+        "apiKey": "{env:OPENCODE_GO_API_KEY}"
+      },
+      "models": {
+        "opencode-1": {
+          "modelID": "opencode-1",
+          "name": "Opencode Go"
+        }
+      }
+    },
+    "anthropic": {
+      "package": "@opencode-ai/ai/providers/anthropic",
+      "settings": {
+        "apiKey": "sk-ant-test-0000"
+      }
+    },
+    "opencodego": {
+      "package": "@opencode-ai/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://opencode.ai/zen/go/v1",
+        "apiKey": "sk-oc-go-alias-0000"
+      }
+    },
+    "openai": {
+      "package": "@opencode-ai/ai/providers/openai",
+      "settings": {
+        "baseURL": "https://api.openai.com/v1"
+      }
+    }
+  }
+}
