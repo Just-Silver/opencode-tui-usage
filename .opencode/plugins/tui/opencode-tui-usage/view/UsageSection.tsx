@@ -1,4 +1,6 @@
 // ─── UI 层：会话用量区块（纯展示） ───
+// ⚠️ 响应式约束：组件函数体只执行一次，禁止 props 快照 const；
+//    所有取值必须发生在 JSX 表达式位置（Solid 编译器包装为响应式 getter）。
 /** @jsxImportSource @opentui/solid */
 import { Show, type JSX } from "solid-js"
 import type { UsageData } from "../model/types.ts"
@@ -17,14 +19,13 @@ export function UsageSection(props: {
   limit: number | undefined
   cacheRate: number | undefined
 }): JSX.Element {
-  const u = props.usage
   return (
     <Collapsible
       title={SECTION_CACHE_TITLE}
       arrowColor={ARROW_COLOR}
       titleColor={props.theme.text.default}
       summaryColor={props.theme.text.subdued}
-      summary={<span>（{fmtTokens(u.total)}）</span>}
+      summary={<span>（{fmtTokens(props.usage.total)}）</span>}
     >
       <box flexDirection="column" gap={0}>
         <text fg={props.theme.text.default}>上下文</text>
@@ -40,41 +41,41 @@ export function UsageSection(props: {
         <box flexDirection="row" gap={1}>
           <text fg={props.theme.text.default}>总量</text>
           <box flexGrow={1} />
-          <text width={10} fg={props.theme.text.subdued}>{fmtTokens(u.total)}</text>
+          <text width={10} fg={props.theme.text.subdued}>{fmtTokens(props.usage.total)}</text>
           <text width={8} />
         </box>
         <box flexDirection="row" gap={1}>
           <text fg={props.theme.text.default}>输入</text>
           <box flexGrow={1} />
-          <text width={10} fg={props.theme.text.subdued}>{fmtTokens(u.input)}</text>
-          <text width={8} fg={props.theme.text.subdued}>({sharePct(u.input, u.total)})</text>
+          <text width={10} fg={props.theme.text.subdued}>{fmtTokens(props.usage.input)}</text>
+          <text width={8} fg={props.theme.text.subdued}>({sharePct(props.usage.input, props.usage.total)})</text>
         </box>
         <box flexDirection="row" gap={1}>
           <text fg={props.theme.text.default}>输出</text>
           <box flexGrow={1} />
-          <text width={10} fg={props.theme.text.subdued}>{fmtTokens(u.output)}</text>
-          <text width={8} fg={props.theme.text.subdued}>({sharePct(u.output, u.total)})</text>
+          <text width={10} fg={props.theme.text.subdued}>{fmtTokens(props.usage.output)}</text>
+          <text width={8} fg={props.theme.text.subdued}>({sharePct(props.usage.output, props.usage.total)})</text>
         </box>
         <box flexDirection="row" gap={1}>
           <text fg={props.theme.text.default}>缓存读取</text>
           <box flexGrow={1} />
-          <text width={10} fg={props.theme.text.subdued}>{fmtTokens(u.read)}</text>
-          <text width={8} fg={props.theme.text.subdued}>({sharePct(u.read, u.total)})</text>
+          <text width={10} fg={props.theme.text.subdued}>{fmtTokens(props.usage.read)}</text>
+          <text width={8} fg={props.theme.text.subdued}>({sharePct(props.usage.read, props.usage.total)})</text>
         </box>
-        <Show when={u.write > 0}>
+        <Show when={props.usage.write > 0}>
           <box flexDirection="row" gap={1}>
             <text fg={props.theme.text.default}>缓存写入</text>
             <box flexGrow={1} />
-            <text width={10} fg={props.theme.text.subdued}>{fmtTokens(u.write)}</text>
-            <text width={8} fg={props.theme.text.subdued}>({sharePct(u.write, u.total)})</text>
+            <text width={10} fg={props.theme.text.subdued}>{fmtTokens(props.usage.write)}</text>
+            <text width={8} fg={props.theme.text.subdued}>({sharePct(props.usage.write, props.usage.total)})</text>
           </box>
         </Show>
-        <Show when={u.reasoning > 0}>
+        <Show when={props.usage.reasoning > 0}>
           <box flexDirection="row" gap={1}>
             <text fg={props.theme.text.default}>推理</text>
             <box flexGrow={1} />
-            <text width={10} fg={props.theme.text.subdued}>{fmtTokens(u.reasoning)}</text>
-            <text width={8} fg={props.theme.text.subdued}>({sharePct(u.reasoning, u.total)})</text>
+            <text width={10} fg={props.theme.text.subdued}>{fmtTokens(props.usage.reasoning)}</text>
+            <text width={8} fg={props.theme.text.subdued}>({sharePct(props.usage.reasoning, props.usage.total)})</text>
           </box>
         </Show>
         <Show when={props.cacheRate !== undefined}>

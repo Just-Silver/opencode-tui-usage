@@ -4,6 +4,9 @@
 /** @jsxImportSource @opentui/solid */
 import { createEffect, createMemo, createSignal, onCleanup, Show, type JSX } from "solid-js"
 import { usePlugin } from "@opencode-ai/plugin/tui"
+import { appendFileSync, rmSync, statSync } from "fs"
+import { homedir } from "os"
+import { join } from "path"
 import {
   aggregateUsage,
   calcCacheRate,
@@ -25,8 +28,27 @@ function quotaStore(deps: QuotaDeps) {
   return store
 }
 
-// 诊断探针（临时）：providerID 首次解析标记（诊断完删除）
-let providerProbed = false
+// ── 文件日志通道（长期保留：TUI console 不可见，文件日志为唯一诊断通道） ──
+// 默认禁用（零开销）；排查问题时设置 TUI_USAGE_PROBE=1 再启动 opencode 客户端即启用：
+//   pwsh: $env:TUI_USAGE_PROBE="1"; opencode
+// 1MB 自我保护：官方 opencode.log 无任何清理机制，我们自己的日志文件自管（超限重建）
+const PROBE_ENABLED = process.env.TUI_USAGE_PROBE === "1"
+const probeLogPath = () => join(homedir(), ".local", "share", "opencode", "log", "tui-usage.log")
+const logToFile = (msg: string) => {
+  if (!PROBE_ENABLED) return
+  try {
+    const p = probeLogPath()
+    try {
+      if (statSync(p).size > 1_000_000) rmSync(p, { force: true })
+    } catch {
+      /* 文件不存在：首次写入 */
+    }
+    appendFileSync(p, `[${new Date().toISOString()}] [tui-usage] ${msg}\n`)
+  } catch {
+    /* 忽略：日志不可用不影响插件 */
+  }
+}
+logToFile("sidebar module loaded")
 
 export function Sidebar(props: { sessionID?: string }): JSX.Element {
   const ctx = usePlugin()
@@ -45,10 +67,12 @@ export function Sidebar(props: { sessionID?: string }): JSX.Element {
     apiUrlFor: getProviderApiUrl, // 归一化查找：未注册供应商落 QUOTA_API_URL 兜底
     resolveKey: resolveProviderKey,
     fetch: fetchQuota,
+    // TUI 插件无 app.log API（client 为 HTTP 客户端）；console 输出不可见（TUI 全屏），
+    // 双写文件日志（受 TUI_USAGE_PROBE 开关门控，默认禁用）
     log: (level, message) => {
-      void ctx.client.app
-        .log({ body: { service: "tui-usage", level, message } })
-        .catch(() => {})
+      if (level === "error") console.error(`[tui-usage] ${message}`)
+      else console.warn(`[tui-usage] ${message}`)
+      logToFile(`${level}: ${message}`)
     },
   })
 
@@ -87,16 +111,6 @@ export function Sidebar(props: { sessionID?: string }): JSX.Element {
       setQuotaVer((v: number) => v + 1)
     }),
   )
-
-  // 诊断探针（临时）：providerID 首次解析到非空值时打一条 info 日志，确认触发链路；诊断完删除
-  if (providerID() && !providerProbed) {
-    providerProbed = true
-    void ctx.client.app
-      .log({
-        body: { service: "tui-usage", level: "info", message: `provider resolved: ${providerID()}` },
-      })
-      .catch(() => {})
-  }
 
   // effect：会话/数据变化触发首次加载（限流防抖，render 高频重建不连击）
   createEffect(() => {
