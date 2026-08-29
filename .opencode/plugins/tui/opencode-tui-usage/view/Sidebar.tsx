@@ -13,7 +13,7 @@ import {
   resolveProviderID,
 } from "../model/usage.ts"
 import { getQuotaStore, QUOTA_REFRESH_MS, type QuotaDeps } from "../model/quota.ts"
-import { fetchQuota, isQuotaProvider, PROVIDER_API_URL, QUOTA_API_URL } from "../quota/index.ts"
+import { fetchQuota, getProviderApiUrl, isQuotaProvider } from "../quota/index.ts"
 import { resolveProviderKey } from "../quota/key.ts"
 import { QuotaSection } from "./QuotaSection.tsx"
 import { UsageSection } from "./UsageSection.tsx"
@@ -39,7 +39,7 @@ export function Sidebar(props: { sessionID?: string }): JSX.Element {
 
   // ── 额度查询服务（单例；deps 的 log 首次创建时绑定 client） ──
   const store = quotaStore({
-    apiUrlFor: (pid) => PROVIDER_API_URL[pid] ?? QUOTA_API_URL,
+    apiUrlFor: getProviderApiUrl, // 归一化查找：未注册供应商落 QUOTA_API_URL 兜底
     resolveKey: resolveProviderKey,
     fetch: fetchQuota,
     log: (level, message) => {

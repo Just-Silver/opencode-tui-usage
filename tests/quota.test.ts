@@ -7,6 +7,7 @@ import { dirname, join } from "node:path"
 import {
   fetchers,
   fetchQuota,
+  getProviderApiUrl,
   isQuotaProvider,
 } from "../.opencode/plugins/tui/opencode-tui-usage/quota/index.ts"
 import { resolveApiKeyFromConfig } from "../.opencode/plugins/tui/opencode-tui-usage/quota/key.ts"
@@ -56,4 +57,16 @@ test("全链路：opencodego 写法从配置提取 key（fixture 覆盖）", () 
   // 2) resolveApiKeyFromConfig("opencodego", {cwd: projectDir}) 命中配置里同名键
   assert.equal(isQuotaProvider("opencodego"), true)
   assert.equal(resolveApiKeyFromConfig("opencodego", { cwd: projectDir }), "sk-oc-go-alias-0000")
+})
+
+// ─── getProviderApiUrl（归一化 URL 查找；Command Code 未注册前全部落 QUOTA_API_URL） ───
+test("getProviderApiUrl：opencode-go 任意写法命中专属 URL", () => {
+  const url = getProviderApiUrl("opencode-go")
+  assert.equal(url, "https://opencode.ai/zen/go/v1/usage")
+  assert.equal(getProviderApiUrl("opencode_go"), url) // 归一化写法同样命中
+})
+
+test("getProviderApiUrl：未注册/无关 pid 落 QUOTA_API_URL 兜底", () => {
+  assert.equal(getProviderApiUrl("command-code"), "https://opencode.ai/zen/go/v1/usage") // 注册注释期兜底
+  assert.equal(getProviderApiUrl("nope"), "https://opencode.ai/zen/go/v1/usage")
 })
