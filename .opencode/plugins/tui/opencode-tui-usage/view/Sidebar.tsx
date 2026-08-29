@@ -25,6 +25,9 @@ function quotaStore(deps: QuotaDeps) {
   return store
 }
 
+// 诊断探针（临时）：providerID 首次解析标记（诊断完删除）
+let providerProbed = false
+
 export function Sidebar(props: { sessionID?: string }): JSX.Element {
   const ctx = usePlugin()
   const theme = ctx.theme
@@ -78,19 +81,32 @@ export function Sidebar(props: { sessionID?: string }): JSX.Element {
     return store.get(pid)
   })
 
-  const refreshQuota = (pid: string) => {
-    void store.load(pid).then((updated) => {
-      if (updated) setQuotaVer((v: number) => v + 1)
-    })
+  // 订阅 store 写库通知：任何组件发起的 load 写库后当前组件都会刷新（跨组件重建安全）
+  onCleanup(
+    store.subscribe(() => {
+      setQuotaVer((v: number) => v + 1)
+    }),
+  )
+
+  // 诊断探针（临时）：providerID 首次解析到非空值时打一条 info 日志，确认触发链路；诊断完删除
+  if (providerID() && !providerProbed) {
+    providerProbed = true
+    void ctx.client.app
+      .log({
+        body: { service: "tui-usage", level: "info", message: `provider resolved: ${providerID()}` },
+      })
+      .catch(() => {})
   }
 
+  // effect：会话/数据变化触发首次加载（限流防抖，render 高频重建不连击）
   createEffect(() => {
     const pid = providerID()
-    if (pid) refreshQuota(pid)
+    if (pid) void store.load(pid)
   })
+  // timer：每 60s force 轮询（绕过限流，必然真请求；限流与轮询相位解耦）
   const timer = setInterval(() => {
     const pid = providerID()
-    if (pid) refreshQuota(pid)
+    if (pid) void store.load(pid, { force: true })
   }, QUOTA_REFRESH_MS)
   onCleanup(() => clearInterval(timer))
 
