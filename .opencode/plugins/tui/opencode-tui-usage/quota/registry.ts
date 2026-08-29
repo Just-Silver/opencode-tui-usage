@@ -1,6 +1,6 @@
 // ─── 查询服务层：供应商注册表纯逻辑（node 可测） ───
 // createRegistry(providers) 由注册清单推导白名单/URL 表/fetcher 表；
-// index.ts 用 import.meta.glob 自动发现 providers/*.ts 后调用本模块（glob 仅存在于 index.ts）。
+// index.ts 运行时 fs 扫描 + 动态 import 发现 providers/*.ts 后调用本模块（全链无 import.meta.glob）。
 import type { QuotaData } from "../model/types.ts"
 import { normID } from "../shared/id.ts"
 

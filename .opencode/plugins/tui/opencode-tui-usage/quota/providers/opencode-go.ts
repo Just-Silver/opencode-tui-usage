@@ -1,5 +1,5 @@
 // ─── OpenCode Go 额度查询：quota/providers/opencode-go.ts ───
-// 自动发现：导出 provider 即视为一个供应商查询（index.ts 经 import.meta.glob 收集）。
+// 自动发现：导出 provider 即视为一个供应商查询（index.ts 运行时 fs 扫描 + 动态 import 收集，无 glob）。
 import type { QuotaData } from "../../model/types.ts"
 import { QUOTA_API_URL, type ProviderRegistration } from "../registry.ts"
 
