@@ -3,7 +3,7 @@
 // fetchCommandCode 的网络路径取消注册后可手动验证。
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { mapCommandCode } from "../.opencode/plugins/tui/opencode-tui-usage/quota/command-code.ts"
+import { mapCommandCode } from "../.opencode/plugins/tui/opencode-tui-usage/quota/providers/command-code.ts"
 
 // 构造有数据的正常响应
 const creditsWithData = {

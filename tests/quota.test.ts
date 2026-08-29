@@ -1,45 +1,69 @@
-// ─── quota/index.ts 白名单归一化与 fetcher 分发单元测试 ───
-// 运行：node --test tests/quota.test.ts（与 key.test.ts 同目录一起跑亦可）
+// ─── quota/registry.ts 白名单归一化与 fetcher 分发单元测试 ───
+// 注意：index.ts 含 import.meta.glob（node 不识别），测试一律以 createRegistry(静态注册) 驱动。
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { fileURLToPath } from "node:url"
 import { dirname, join } from "node:path"
-import {
-  fetchers,
-  fetchQuota,
-  getProviderApiUrl,
-  isQuotaProvider,
-} from "../.opencode/plugins/tui/opencode-tui-usage/quota/index.ts"
+import { createRegistry, QUOTA_API_URL, type ProviderRegistration } from "../.opencode/plugins/tui/opencode-tui-usage/quota/registry.ts"
 import { resolveApiKeyFromConfig } from "../.opencode/plugins/tui/opencode-tui-usage/quota/key.ts"
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures")
 const projectDir = join(fixtures, "project")
 
+// 与 providers/opencode-go.ts 等价的静态注册（测试不动 glob，直接构造）
+const opencodeGo: ProviderRegistration = {
+  id: "opencode-go",
+  apiUrl: "https://opencode.ai/zen/go/v1/usage",
+  fetch: async () => undefined, // 本组测试不触发真实请求（分发/守卫逻辑与 fetch 实现无关）
+}
+
+const registry = createRegistry([opencodeGo])
+
 // ─── 白名单归一化（isQuotaProvider） ───
 test("isQuotaProvider：任意写法命中 opencode-go", () => {
   for (const pid of ["opencode-go", "opencodego", "opencode_go", "Opencode-Go", "opencode2go"]) {
-    assert.equal(isQuotaProvider(pid), true, `应为命中: ${pid}`)
+    assert.equal(registry.isQuotaProvider(pid), true, `应为命中: ${pid}`)
   }
 })
 
-test("isQuotaProvider：无关/空 pid 不命中", () => {
-  for (const pid of ["anthropic", "openai", "azure", "", "opencode-x"]) {
-    assert.equal(isQuotaProvider(pid), false, `应不命中: ${pid}`)
+test("isQuotaProvider：无关/空 pid 不命中（含未启用供应商 command-code）", () => {
+  for (const pid of ["anthropic", "openai", "azure", "", "opencode-x", "command-code", "commandcode"]) {
+    assert.equal(registry.isQuotaProvider(pid), false, `应不命中: ${pid}`)
   }
+})
+
+test("createRegistry：enabled:false 注册项被跳过，enabled 后命中", () => {
+  const reg = createRegistry([
+    opencodeGo,
+    { id: "command-code", apiUrl: "https://api.commandcode.ai/alpha/billing/credits", fetch: async () => undefined, enabled: false },
+  ])
+  assert.equal(reg.isQuotaProvider("command-code"), false) // 未启用：不进入白名单
+  const reg2 = createRegistry([
+    opencodeGo,
+    { id: "command-code", apiUrl: "https://api.commandcode.ai/alpha/billing/credits", fetch: async () => undefined, enabled: true },
+  ])
+  assert.equal(reg2.isQuotaProvider("command-code"), true)
+  assert.equal(reg2.getProviderApiUrl("commandcode"), "https://api.commandcode.ai/alpha/billing/credits")
 })
 
 // ─── fetchQuota 归一化分发（用户写法 pid 也要能取到 fetcher） ───
 test("fetchQuota：归一化匹配 fetcher 并透传 apiUrl/key", async () => {
   let seenApiUrl = ""
   let seenKey = ""
-  fetchers["test-go"] = async (apiUrl: string, key: string) => {
-    seenApiUrl = apiUrl
-    seenKey = key
-    return { rolling: { status: "ok", percent: 42 } }
-  }
+  const reg = createRegistry([
+    {
+      id: "test-go",
+      apiUrl: "https://example.test/v1/usage",
+      fetch: async (apiUrl: string, key: string) => {
+        seenApiUrl = apiUrl
+        seenKey = key
+        return { rolling: { status: "ok", percent: 42 } }
+      },
+    },
+  ])
   const url = "https://example.test/v1/usage"
   for (const pid of ["test-go", "test_go", "Test-Go", "testgo"]) {
-    const usage = await fetchQuota(pid, url, "k-secret")
+    const usage = await reg.fetchQuota(pid, url, "k-secret")
     assert.equal(usage?.rolling?.percent, 42, `应为命中: ${pid}`)
     assert.equal(seenApiUrl, url)
     assert.equal(seenKey, "k-secret")
@@ -47,7 +71,7 @@ test("fetchQuota：归一化匹配 fetcher 并透传 apiUrl/key", async () => {
 })
 
 test("fetchQuota：无对应 fetcher → undefined", async () => {
-  assert.equal(await fetchQuota("nope", "https://x", "k"), undefined)
+  assert.equal(await registry.fetchQuota("nope", "https://x", "k"), undefined)
 })
 
 // ─── 全链路：用户写法的 pid → 守卫过 → 配置 key 命中 ───
@@ -55,18 +79,18 @@ test("全链路：opencodego 写法从配置提取 key（fixture 覆盖）", () 
   // 会话 pid 为用户写法 opencodego：
   // 1) isQuotaProvider("opencodego") = true（白名单归一化）
   // 2) resolveApiKeyFromConfig("opencodego", {cwd: projectDir}) 命中配置里同名键
-  assert.equal(isQuotaProvider("opencodego"), true)
+  assert.equal(registry.isQuotaProvider("opencodego"), true)
   assert.equal(resolveApiKeyFromConfig("opencodego", { cwd: projectDir }), "sk-oc-go-alias-0000")
 })
 
-// ─── getProviderApiUrl（归一化 URL 查找；Command Code 未注册前全部落 QUOTA_API_URL） ───
+// ─── getProviderApiUrl（归一化 URL 查找；Command Code 未启用前全部落 QUOTA_API_URL） ───
 test("getProviderApiUrl：opencode-go 任意写法命中专属 URL", () => {
-  const url = getProviderApiUrl("opencode-go")
+  const url = registry.getProviderApiUrl("opencode-go")
   assert.equal(url, "https://opencode.ai/zen/go/v1/usage")
-  assert.equal(getProviderApiUrl("opencode_go"), url) // 归一化写法同样命中
+  assert.equal(registry.getProviderApiUrl("opencode_go"), url) // 归一化写法同样命中
 })
 
-test("getProviderApiUrl：未注册/无关 pid 落 QUOTA_API_URL 兜底", () => {
-  assert.equal(getProviderApiUrl("command-code"), "https://opencode.ai/zen/go/v1/usage") // 注册注释期兜底
-  assert.equal(getProviderApiUrl("nope"), "https://opencode.ai/zen/go/v1/usage")
+test("getProviderApiUrl：未启用/无关 pid 落 QUOTA_API_URL 兜底", () => {
+  assert.equal(registry.getProviderApiUrl("command-code"), "https://opencode.ai/zen/go/v1/usage") // enabled:false 期兜底
+  assert.equal(registry.getProviderApiUrl("nope"), QUOTA_API_URL)
 })

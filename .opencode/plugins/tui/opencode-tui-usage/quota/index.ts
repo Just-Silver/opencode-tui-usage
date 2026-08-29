@@ -1,57 +1,18 @@
-import type { QuotaData } from "../model/types.ts"
-import { fetchOpencodeGo } from "./opencode-go.ts"
-import { normID } from "../shared/id.ts"
-// 取消注释即启用 Command Code（等待真实订阅数据验证）：
-// import { COMMANDCODE_CREDITS_URL, fetchCommandCode } from "./command-code.ts"
-
 // ─── 统一前缀：此插件所有 quota 逻辑由此分发 ───
-// 新增供应商：1) 在此追加 PROVIDER_API_URL；2) 在 quota/ 下新增 <provider>.ts 并在 fetchers 注册
+// 供应商自动发现：quota/providers/<name>.ts 导出 provider 即视为一个供应商查询。
+// 新增供应商 = 只新增 providers/<name>.ts 一个文件（glob 打包期展开，重启服务重新打包生效）。
+import { createRegistry, QUOTA_API_URL, type ProviderRegistration } from "./registry.ts"
 
-export const QUOTA_API_URL = "https://opencode.ai/zen/go/v1/usage"
-export const OPENCODE_GO_INTEGRATION = "opencode-go"
+// bundler 静态展开（bun import.meta.glob eager）：收集 providers/ 下全部 .ts 模块
+const modules = import.meta.glob("./providers/*.ts", { eager: true }) as Record<
+  string,
+  { provider?: ProviderRegistration }
+>
 
-// ═══ Command Code 供应商（暂注释注册：等待真实订阅数据验证；取消注释即启用） ═══
-// export const COMMAND_CODE_INTEGRATION = "command-code"
+const registered = Object.values(modules)
+  .map((m) => m.provider)
+  .filter((p): p is ProviderRegistration => !!p && p.enabled !== false)
 
-export const QUOTA_INTEGRATIONS = [OPENCODE_GO_INTEGRATION /* , COMMAND_CODE_INTEGRATION */] as const
+const { isQuotaProvider, getProviderApiUrl, fetchQuota } = createRegistry(registered)
 
-export const PROVIDER_API_URL: Record<string, string> = {
-  [OPENCODE_GO_INTEGRATION]: QUOTA_API_URL,
-  // [COMMAND_CODE_INTEGRATION]: COMMANDCODE_CREDITS_URL, // 取消注释即启用
-  // 例： "anthropic": "https://api.anthropic.com/v1/usage",
-}
-
-// 供应商 ID 归一化：小写 + 只保留英文小写字符。
-// 用于「我方写死的 ID」与「用户任意写法」的比较（opencode-go / opencode_go / Opencode-Go → opencodego）。
-// 官方（ProviderV2.ID = Schema.String）无字符限制也不归一化，此处仅作用于我们自己的匹配层；
-// 配置 key / DB integration_id 与会话 pid 同源原样，不参与归一化。
-
-// 白名单守卫：pid（用户配置写法）是否命中我们支持的供应商（任意写法）
-export function isQuotaProvider(pid: string): boolean {
-  const n = normID(pid)
-  return (
-    QUOTA_INTEGRATIONS.some((id) => normID(id) === n) ||
-    Object.keys(PROVIDER_API_URL).some((id) => normID(id) === n)
-  )
-}
-
-// API URL 查找也走 normID 归一化（用户写法 commandcode 也能取到专属 URL）；
-// 未命中仍回退 QUOTA_API_URL。当前仅 opencode-go 注册时行为与旧式查找等价。
-export function getProviderApiUrl(pid: string): string {
-  const n = normID(pid)
-  return Object.entries(PROVIDER_API_URL).find(([id]) => normID(id) === n)?.[1] ?? QUOTA_API_URL
-}
-
-// 按供应商分发的 fetcher：pid -> (apiUrl, key) -> QuotaData
-export const fetchers: Record<string, (apiUrl: string, key: string) => Promise<QuotaData | undefined>> = {
-  [OPENCODE_GO_INTEGRATION]: fetchOpencodeGo,
-  // [COMMAND_CODE_INTEGRATION]: fetchCommandCode, // 取消注释即启用
-  // 例： "anthropic": fetchAnthropic,
-}
-
-export async function fetchQuota(pid: string, apiUrl: string, key: string): Promise<QuotaData | undefined> {
-  const n = normID(pid)
-  const entry = Object.entries(fetchers).find(([id]) => normID(id) === n)
-  if (entry) return entry[1](apiUrl, key)
-  return undefined
-}
+export { QUOTA_API_URL, isQuotaProvider, getProviderApiUrl, fetchQuota }

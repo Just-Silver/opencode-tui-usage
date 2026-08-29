@@ -1,10 +1,11 @@
-// ─── Command Code 额度查询：quota/command-code.ts ─────────
+// ─── Command Code 额度查询：quota/providers/command-code.ts ───
 // 数据源（已实测，Bearer 鉴权）：
 //   1. /alpha/billing/credits        → 5h/7d 窗口（{used,cap,resetAt}）+ 月度余额（monthlyCredits）
 //   2. /alpha/billing/subscriptions  → planId → 套餐映射表推月度上限（API 只给余额不给上限）
-// 供应商 ID：command-code（注册在 quota/index.ts，当前注册行注释待真实订阅数据启用）
+// 状态：**enabled: false**（已实现、离线测试通过；等待真实订阅数据验证后改 true 即启用）
 // 脱敏：本模块不记日志；key 仅用于 Authorization 请求头。
-import type { QuotaData } from "../model/types.ts"
+import type { QuotaData } from "../../model/types.ts"
+import type { ProviderRegistration } from "../registry.ts"
 
 export const COMMANDCODE_CREDITS_URL = "https://api.commandcode.ai/alpha/billing/credits"
 export const COMMANDCODE_SUBSCRIPTIONS_URL = "https://api.commandcode.ai/alpha/billing/subscriptions"
@@ -61,7 +62,7 @@ export function mapCommandCode(creditsResp: unknown, subResp: unknown): QuotaDat
   return out
 }
 
-// 主入口（兼容 fetchers 分发签名）：apiUrl = credits 端点（注册后由 getProviderApiUrl 提供）
+// 主入口（兼容 fetchers 分发签名）：apiUrl = credits 端点（由 getProviderApiUrl 提供）
 // credits 失败 → throw（沿用入口错误日志）；subscriptions 失败 → 降级不 throw
 export async function fetchCommandCode(apiUrl: string, key: string): Promise<QuotaData | undefined> {
   const headers = { Authorization: `Bearer ${key}` }
@@ -81,4 +82,12 @@ export async function fetchCommandCode(apiUrl: string, key: string): Promise<Quo
     sub = undefined // 降级：仅月窗口缺失
   }
   return mapCommandCode(credits, sub)
+}
+
+// 自动发现注册
+export const provider: ProviderRegistration = {
+  id: "command-code",
+  apiUrl: COMMANDCODE_CREDITS_URL,
+  fetch: fetchCommandCode,
+  enabled: false, // ⚠️ 等待真实订阅数据验证后再启用（改 true）
 }

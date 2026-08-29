@@ -1,4 +1,7 @@
-import type { QuotaData } from "../model/types.ts"
+// ─── OpenCode Go 额度查询：quota/providers/opencode-go.ts ───
+// 自动发现：导出 provider 即视为一个供应商查询（index.ts 经 import.meta.glob 收集）。
+import type { QuotaData } from "../../model/types.ts"
+import { QUOTA_API_URL, type ProviderRegistration } from "../registry.ts"
 
 const QUOTA_USER_AGENT = "opencode-tui-usage"
 
@@ -16,4 +19,10 @@ export async function fetchOpencodeGo(apiUrl: string, key: string): Promise<Quot
     throw new Error(`quota json parse failed: ${String(e)}`)
   }
   return json.usage
+}
+
+export const provider: ProviderRegistration = {
+  id: "opencode-go",
+  apiUrl: QUOTA_API_URL,
+  fetch: fetchOpencodeGo,
 }
