@@ -1,5 +1,6 @@
-import type { QuotaData } from "./types.ts"
+import type { QuotaData } from "../model/types.ts"
 import { fetchOpencodeGo } from "./opencode-go.ts"
+import { normID } from "../shared/id.ts"
 
 // ─── 统一前缀：此插件所有 quota 逻辑由此分发 ───
 // 新增供应商：1) 在此追加 PROVIDER_API_URL；2) 在 quota/ 下新增 <provider>.ts 并在 fetchers 注册
@@ -18,7 +19,6 @@ export const PROVIDER_API_URL: Record<string, string> = {
 // 用于「我方写死的 ID」与「用户任意写法」的比较（opencode-go / opencode_go / Opencode-Go → opencodego）。
 // 官方（ProviderV2.ID = Schema.String）无字符限制也不归一化，此处仅作用于我们自己的匹配层；
 // 配置 key / DB integration_id 与会话 pid 同源原样，不参与归一化。
-const normID = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "")
 
 // 白名单守卫：pid（用户配置写法）是否命中我们支持的供应商（任意写法）
 export function isQuotaProvider(pid: string): boolean {

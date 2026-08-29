@@ -1,4 +1,4 @@
-import type { QuotaData } from "./types"
+import type { QuotaData } from "../model/types.ts"
 
 const QUOTA_USER_AGENT = "opencode-tui-usage"
 

@@ -7,6 +7,7 @@
 import { readFileSync } from "fs"
 import { homedir } from "os"
 import { dirname, join, resolve } from "path"
+import { parseJson } from "../shared/jsonc.ts"
 
 const OPENCODE_DATA_DIR_NAME = "opencode" // opencode 数据目录名
 const OPENCODE_DATA_DIR_REL = [".local", "share", "opencode"] // ~ 下相对路径
@@ -21,24 +22,6 @@ function resolveEnvPlaceholder(value: string): string | undefined {
   if (!m) return value
   const v = process.env[m[1]]
   return typeof v === "string" && v.length > 0 ? v : undefined
-}
-
-// 轻量 JSONC：先按纯 JSON 解析，失败再去注释/尾逗号后重试；仍失败返回 undefined
-function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text)
-  } catch {
-    // fallthrough：尝试 JSONC 清洗
-  }
-  const clean = text
-    .replace(/\/\*[\s\S]*?\*\//g, "") // 块注释
-    .replace(/(^|[^:\\])\/\/.*$/gm, "$1") // 行注释（字符串内 // 属极端情况，解析失败即跳过该来源）
-    .replace(/,(\s*[}\]])/g, "$1") // 尾逗号
-  try {
-    return JSON.parse(clean)
-  } catch {
-    return undefined
-  }
 }
 
 // 配置文件候选，按优先级排列：项目（近→远，.opencode/ 优先）→ 全局
