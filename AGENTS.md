@@ -13,6 +13,13 @@
 - 校验：单元测试 `node --test tests/*.test.ts`（node ≥23.6 原生 TS strip，零依赖；7 个文件：key/quota/model/quota-store/shared/command-code/discovery，全部须过）；改后打包语法检查用 esbuild：`npx --yes esbuild .opencode/plugins/tui/opencode-tui-usage.tsx --bundle --platform=node --format=esm --jsx=automatic --jsx-import-source=@opentui/solid --external:@opencode-ai/plugin/tui --external:@opentui/solid --external:solid-js --outfile=$env:TEMP\opencode\tui-bundle-check.js`（`Done in` 即通过）；`opencode` 启动侧边栏无 `sidebar.content` 崩溃即正常
 - 官方源码速查：v2 仓库 = `sst/opencode`（TS monorepo，**`opencode-ai/opencode` 已归档勿用**）；日志实现 `packages/core/src/observability/logging.ts`（`Logger.toFile(..., { flag: "a" })`，**opencode.log 无轮转/截断/清理**）；查代码用 sparse clone 绕过 GitHub code search 对超大仓库的截断：`git clone --depth 1 --filter=blob:none --sparse <url> && git -C <dir> sparse-checkout set packages/core packages/tui`
 
+# opencode2 版本与插件加载（上游回归，2026-08-31 实锤）
+- **已知回归**：beta 通道 `0.0.0-beta-18721` 起 TUI/CLI 本地插件**完全不加载**——`cli.json` `plugins`（`file://` 目录/文件、相对路径）、`tui.json` `plugin` 数组、官方目录布局 `plugins/<name>/index.tsx` **全部无效**；特征是**静默失败零日志**（opencode.log 无插件痕迹、plugin-meta.json 不存在、任何 log level 都查不到，均非配置问题）。上游 issue：#42051（cli.json 迁移后插件配置被忽略，OPEN）、#41574（失败零日志）、#42763/#43644（Windows 路径 import）、#46095（解析缓存毒化）；修复 PR #42485 未合并
+- **最后一个无 bug 版本：`0.0.0-beta-18707`（2026-08-31 01:12 构建）**；更早 18593/18600/18684（8/28-8/29）同样正常。**18721（8/31 07:28 构建）及之后的 beta 全部中招**；`latest`/`next` tag（0.0.0-beta-17823）同样有回归勿用；`1.18.x` 不是 V2 勿装
+- 版本管理：npm 全局 `@opencode-ai/cli`。降级：`npm install -g @opencode-ai/cli@0.0.0-beta-18707`（写死版本号，**不要用 tag**——beta tag 天天更新）；升回：等 #42051/PR #42485 合并后 `npm install -g @opencode-ai/cli@beta`
+- **禁止自升级**：全局 `~/.config/opencode/opencode.json` 配 `"autoupdate": false`（`"notify"` 只提示不装；**项目级值被忽略必须放全局**）。本次 18707→18721 即自升级所为（日志每次启动 `update check`，npm 包时间戳两次变化）
+- 排查提示：升级 opencode2 后侧边栏插件消失且零日志 = 先查版本号是否 ≥18721，再怀疑配置；禁升级配置后验版本 `opencode2 --version`
+
 # 关键逻辑
 - `sidebar.content` 的 `render({sessionID})` 仅跟当前展示会话，空会话 `providerID` 返回 `undefined` 不查额度、有缓存 `Map<providerID,QuotaData>` 切回瞬时显示，子代理独立 `sessionID` 不进侧边栏不触发
 - 额度按 `providerID` 分桶：`model/quota.ts` 的 `QuotaStore`（cache/at/inFlight + **subscribe 写库通知**，依赖注入可测；`load(pid, {force})` 供轮询绕过 60s 限流，Sidebar 订阅的是当前组件实例，跨 render 重建不丢刷新）；供应商**运行时自动发现**（opencode 源码确认：TUI 插件为 bun 运行时逐文件动态 import，无打包器/glob）：`quota/index.ts` 顶层 await 用 fs 扫描 + 动态 import 收集 `quota/providers/<name>.ts` 导出 `provider` 的模块，交 `quota/registry.ts` 的 `createRegistry`（纯逻辑可测）推导白名单/URL/fetcher；白名单守卫与 fetcher 分发均经 `isQuotaProvider`/`normID` 按「小写+只留 [a-z]」归一化匹配（用户写法 `opencode-go`/`opencodego`/`opencode_go` 均命中），配置/DB 查找保持原样 pid（同源天然命中）；API URL 经 `getProviderApiUrl` 归一化查找（未启用/未注册落 `QUOTA_API_URL` 兜底）。**新增供应商 = 只需新增 `providers/<name>.ts` 一个文件，热重载即生效**
