@@ -15,6 +15,7 @@
 
 # opencode2 版本与插件加载（上游回归，2026-08-31 实锤）
 - **已知回归**：beta 通道 `0.0.0-beta-18721` 起 TUI/CLI 本地插件**完全不加载**——`cli.json` `plugins`（`file://` 目录/文件、相对路径）、`tui.json` `plugin` 数组、官方目录布局 `plugins/<name>/index.tsx` **全部无效**；特征是**静默失败零日志**（opencode.log 无插件痕迹、plugin-meta.json 不存在、任何 log level 都查不到，均非配置问题）。上游 issue：#42051（cli.json 迁移后插件配置被忽略，OPEN）、#41574（失败零日志）、#42763/#43644（Windows 路径 import）、#46095（解析缓存毒化）；修复 PR #42485 未合并
+- **我方实证提交：#46408（Windows + beta-18721 + 官方形态全无效 + 18707 正常时间线，2026-08-31）**，与 #42051 同族互证
 - **最后一个无 bug 版本：`0.0.0-beta-18707`（2026-08-31 01:12 构建）**；更早 18593/18600/18684（8/28-8/29）同样正常。**18721（8/31 07:28 构建）及之后的 beta 全部中招**；`latest`/`next` tag（0.0.0-beta-17823）同样有回归勿用；`1.18.x` 不是 V2 勿装
 - 版本管理：npm 全局 `@opencode-ai/cli`。降级：`npm install -g @opencode-ai/cli@0.0.0-beta-18707`（写死版本号，**不要用 tag**——beta tag 天天更新）；升回：等 #42051/PR #42485 合并后 `npm install -g @opencode-ai/cli@beta`
 - **禁止自升级**：全局 `~/.config/opencode/opencode.json` 配 `"autoupdate": false`（`"notify"` 只提示不装；**项目级值被忽略必须放全局**）。本次 18707→18721 即自升级所为（日志每次启动 `update check`，npm 包时间戳两次变化）
