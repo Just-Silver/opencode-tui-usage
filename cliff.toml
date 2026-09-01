@@ -1,0 +1,75 @@
+# git-cliff 配置：CHANGELOG.md 自动生成
+# 按 Conventional Commits 归类变更，Keep a Changelog 标准格式。
+# 中文仓库规范：提交信息用中文，commit 分类靠约定式提交前缀。
+# 用法：
+#   git-cliff -o CHANGELOG.md                # 生成/更新 CHANGELOG.md
+#   git-cliff --unreleased -o CHANGELOG.md   # 只生成未发布部分
+#   git-cliff --tag v1.1.0 -o CHANGELOG.md   # 指定版本
+
+[changelog]
+# 标题
+header = """
+# Changelog
+
+本仓库所有重要变更记录于此，格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
+版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
+
+"""
+
+# 正文模板（每个版本一节）
+body = """
+{% if version %}## [{{ version | trim_start_matches(pat="v") }}]{% if timestamp %} - {{ timestamp | date(format="%Y-%m-%d") }}{% endif %}
+
+{% endif %}{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}** {% endif %}{{ commit.message | upper_first }}{% if commit.breaking %}（破坏性变更）{% endif %}{% if commit.links %}（{{ commit.links | join(separator=", ") }}）{% endif %}
+{%- endfor %}
+{% endfor %}
+"""
+
+# 版本间链接（GitHub 标准格式）
+template = """
+{% for version in versions %}
+[{{ version.version | trim_start_matches(pat="v") }}]: https://github.com/Just-Silver/opencode-tui-usage/compare/v{{ previous.version }}...v{{ version.version }}
+{% endfor %}
+"""
+
+# 未发布版本占位（--unreleased 时用）
+unreleased = """
+{% if version %}## [{{ version | trim_start_matches(pat="v") }}]{% if timestamp %} - {{ timestamp | date(format="%Y-%m-%d") }}{% endif %}
+
+{% endif %}{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}** {% endif %}{{ commit.message | upper_first }}{% if commit.breaking %}（破坏性变更）{% endif %}
+{%- endfor %}
+{% endfor %}
+
+"""
+
+[git]
+# 解析约定式提交（feat:/fix:/docs: 等前缀）
+conventional_commits = true
+# 不匹配约定式的提交也保留（中文提交无前缀也能进 changelog）
+filter_unconventional = false
+
+# 提交类型 → CHANGELOG 分组标题（正则匹配消息前缀）
+commit_parsers = [
+  { message = "^feat",      group = "新功能" },
+  { message = "^fix",       group = "修复" },
+  { message = "^docs",      group = "文档" },
+  { message = "^style",     group = "样式" },
+  { message = "^refactor",  group = "重构" },
+  { message = "^perf",      group = "性能" },
+  { message = "^test",      group = "测试" },
+  { message = "^build",     group = "构建" },
+  { message = "^ci",        group = "CI" },
+  { message = "^chore",     group = "杂项" },
+  { message = "^revert",    group = "回滚" },
+  # 兜底：其余（含中文提交）归入"其他"
+  { message = ".*",         group = "其他" },
+]
+
+# 不被任何 parser 匹配的提交是否保留
+filter_commits = false
