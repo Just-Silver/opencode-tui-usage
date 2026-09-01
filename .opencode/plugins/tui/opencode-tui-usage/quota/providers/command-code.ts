@@ -2,7 +2,7 @@
 // 数据源（已实测，Bearer 鉴权）：
 //   1. /alpha/billing/credits        → 5h/7d 窗口（{used,cap,resetAt}）+ 月度余额（monthlyCredits）
 //   2. /alpha/billing/subscriptions  → planId → 套餐映射表推月度上限（API 只给余额不给上限）
-// 状态：**enabled: false**（已实现、离线测试通过；等待真实订阅数据验证后改 true 即启用）
+// 状态：**已启用**（离线测试与真实数据实测通过）
 // 脱敏：本模块不记日志；key 仅用于 Authorization 请求头。
 import type { QuotaData } from "../../model/types.ts"
 import type { ProviderRegistration } from "../registry.ts"
@@ -89,5 +89,5 @@ export const provider: ProviderRegistration = {
   id: "command-code",
   apiUrl: COMMANDCODE_CREDITS_URL,
   fetch: fetchCommandCode,
-  enabled: false, // ⚠️ 等待真实订阅数据验证后再启用（改 true）
+  enabled: true,
 }
