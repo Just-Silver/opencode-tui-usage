@@ -13,13 +13,18 @@
 - 校验：单元测试 `node --test tests/*.test.ts`（node ≥23.6 原生 TS strip，零依赖；7 个文件：key/quota/model/quota-store/shared/command-code/discovery，全部须过）；改后打包语法检查用 esbuild：`npx --yes esbuild .opencode/plugins/tui/opencode-tui-usage.tsx --bundle --platform=node --format=esm --jsx=automatic --jsx-import-source=@opentui/solid --external:@opencode-ai/plugin/tui --external:@opentui/solid --external:solid-js --outfile=$env:TEMP\opencode\tui-bundle-check.js`（`Done in` 即通过）；`opencode` 启动侧边栏无 `sidebar.content` 崩溃即正常
 - 官方源码速查：v2 仓库 = `sst/opencode`（TS monorepo，**`opencode-ai/opencode` 已归档勿用**）；日志实现 `packages/core/src/observability/logging.ts`（`Logger.toFile(..., { flag: "a" })`，**opencode.log 无轮转/截断/清理**）；查代码用 sparse clone 绕过 GitHub code search 对超大仓库的截断：`git clone --depth 1 --filter=blob:none --sparse <url> && git -C <dir> sparse-checkout set packages/core packages/tui`
 
-# opencode2 版本与插件加载（上游回归，2026-08-31 实锤）
-- **已知回归**：beta 通道 `0.0.0-beta-18721` 起 TUI/CLI 本地插件**完全不加载**——`cli.json` `plugins`（`file://` 目录/文件、相对路径）、`tui.json` `plugin` 数组、官方目录布局 `plugins/<name>/index.tsx` **全部无效**；特征是**静默失败零日志**（opencode.log 无插件痕迹、plugin-meta.json 不存在、任何 log level 都查不到，均非配置问题）。上游 issue：#42051（cli.json 迁移后插件配置被忽略，OPEN）、#41574（失败零日志）、#42763/#43644（Windows 路径 import）、#46095（解析缓存毒化）；修复 PR #42485 未合并
-- **我方实证提交：#46408（Windows + beta-18721 + 官方形态全无效 + 18707 正常时间线，2026-08-31）**，与 #42051 同族互证
-- **最后一个无 bug 版本：`0.0.0-beta-18707`（2026-08-31 01:12 构建）**；更早 18593/18600/18684（8/28-8/29）同样正常。**18721（8/31 07:28 构建）及之后的 beta 全部中招**；`latest`/`next` tag（0.0.0-beta-17823）同样有回归勿用；`1.18.x` 不是 V2 勿装
-- 版本管理：npm 全局 `@opencode-ai/cli`。降级：`npm install -g @opencode-ai/cli@0.0.0-beta-18707`（写死版本号，**不要用 tag**——beta tag 天天更新）；升回：等 #42051/PR #42485 合并后 `npm install -g @opencode-ai/cli@beta`
-- **禁止自升级**：全局 `~/.config/opencode/opencode.json` 配 `"autoupdate": false`（`"notify"` 只提示不装；**项目级值被忽略必须放全局**）。本次 18707→18721 即自升级所为（日志每次启动 `update check`，npm 包时间戳两次变化）
-- 排查提示：升级 opencode2 后侧边栏插件消失且零日志 = 先查版本号是否 ≥18721，再怀疑配置；禁升级配置后验版本 `opencode2 --version`
+# opencode2 版本与插件加载（上游回归，2026-09-01 三层根因实锤）
+- **回归范围**：beta 通道 `0.0.0-beta-18721`（8/31 07:28 构建）起 TUI/CLI 本地插件**完全不加载**；`0.0.0-beta-18743`（8/31 16:22）同坏；npm `dev` tag 已到 18777（未实测，ror 8/12 在 dev dab2637217 验证主症状已修 → **dev 修复未传导到 beta 管道**，两者编号体系相同但发布脱节）。最后一个无 bug 版本 **`0.0.0-beta-18707`（8/31 01:12）**；`latest`/`next` tag（17823）勿用；`1.18.x` 不是 V2
+- **三层根因（全部实测/日志实锤，2026-09-01 调查）**：
+  1. **发现器严格化**：只认 `plugins/` 根层 direct `.ts`/`.js`（官方文档形态）；嵌套子目录 + `.tsx` + 非 index 名全被静默跳过（18707 宽容 → 回归）。包目录形态（`index.tsx`/`tui.tsx`）实测也不被发现
+  2. **依赖外置化**：server 端插件 import `@opencode-ai/plugin` 改走磁盘 `~/.config/opencode/node_modules/`，官方安装流程**从不安装 V2 依赖** → import 失败静默；18707 内嵌自带。手动装齐（`@opencode-ai/plugin@beta` + `@opencode-ai/theme` + `@opentui/core` + `@opentui/solid` + `solid-js`，落盘 `~/.config/opencode/package.json`）后 server 端 import 通过；历史坑：磁盘有 7/2 V1 遗留 `@opencode-ai/plugin@1.17.13`，会报 `Cannot find package '@opentui/keymap'` 掩盖真相
+  3. **加载器 mtime URL bug（上游 bug，无法绕过）**：加载器用带 `?mtime=` 查询串的 file:// URL 动态 import，模块解析器拒绝 → service 日志 `WARN failed to load plugin ... Cannot find module '...ts?mtime=...'`。与 #42481 同源（`ERR_UNKNOWN_BUILTIN_MODULE: file:///...js?mtime=...`）；修复 PR #42485（改用 importModule，SEA-safe）**未合并**，base 分支 v2
+- **判据**：插件是否「被发现」看 TUI Plugins 面板/server 列表；是否「被加载」看 `~/.local/share/opencode/log/opencode.log` 的 `level=WARN failed to load plugin` + cause（ResolveMessage/TypeError）。server 端激活所有插件（含 TUI-only），**setup 里 TUI 专属 API（ui.*、keymap）必须守卫**（server 端 `context.ui` 为 undefined，无守卫报 `TypeError` 但插件仍进列表）
+- **我方实证提交：#46408**（Windows + beta 时间线 + 三层根因 + service 日志证据，2026-08-31 初报 / 09-01 更新），与 #42051 同族但**非 cli.json 迁移**（我们零配置，纯目录自动发现）；上游相关：#42051（OPEN）、#41574、#42763（Windows，OPEN）、#42481、#42485（PR 未合并）
+- **静态分析结论**：18707/18721/18743 三版二进制（`%TEMP%\opencode\static-diff\`）插件发现字符串区逐字符一致、bun runtime 错误表三版同偏移同内容、84.7MB 后模块图 14K 块全异 → **产物全量重打包**；8/31 01:12→07:28 dev 仅 1 条无关提交（v1 backport）→ beta 构建与 dev 提交线脱节（疑似独立构建管道/分支）
+- 版本管理：npm 全局 `@opencode-ai/cli`。降级：`npm install -g @opencode-ai/cli@0.0.0-beta-18707`（写死版本号勿用 tag）；升回：等 #42485 合并并发布到 beta 后 `npm install -g @opencode-ai/cli@beta`
+- **禁止自升级**：全局 `~/.config/opencode/opencode.json` 配 `"autoupdate": false`（`"notify"` 只提示不装；**项目级值被忽略必须放全局**）。本次 18707→18721 即自升级所为
+- 排查提示：升级 opencode2 后侧边栏插件消失 = 先查版本号是否 ≥18721，再看 service 日志 WARN `failed to load plugin` 的 cause 分层定位（发现/依赖/加载），再怀疑配置
 
 # 关键逻辑
 - `sidebar.content` 的 `render({sessionID})` 仅跟当前展示会话，空会话 `providerID` 返回 `undefined` 不查额度、有缓存 `Map<providerID,QuotaData>` 切回瞬时显示，子代理独立 `sessionID` 不进侧边栏不触发
