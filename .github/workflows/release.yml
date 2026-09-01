@@ -46,7 +46,8 @@ jobs:
           git add CHANGELOG.md
           # 有变更才提交（首次生成 / 每次发布更新）
           git diff --cached --quiet || git commit -m "chore: 更新 CHANGELOG 到 v${{ steps.version.outputs.version }}"
-          git push
+          # tag 触发时 checkout 处于 detached HEAD，必须显式指定目标分支
+          git push origin HEAD:main
 
       - name: 生成当前版本 Release 说明（--current）
         id: current
