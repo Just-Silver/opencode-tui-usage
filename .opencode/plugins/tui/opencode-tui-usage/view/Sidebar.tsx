@@ -20,6 +20,7 @@ import { fetchQuota, getProviderApiUrl, isQuotaProvider } from "../quota/index.t
 import { resolveProviderKey } from "../quota/key.ts"
 import { QuotaSection } from "./QuotaSection.tsx"
 import { UsageSection } from "./UsageSection.tsx"
+import { UpdateBanner } from "./UpdateBanner.tsx"
 
 // 进程内单例（跨 render 持久，与重构前模块级 Map 语义一致；deps 仅首次创建时生效）
 let store: ReturnType<typeof getQuotaStore> | undefined
@@ -128,6 +129,7 @@ export function Sidebar(props: { sessionID?: string }): JSX.Element {
     <Show when={usage()}>
       {(u) => (
         <box flexDirection="column" gap={1}>
+          <UpdateBanner theme={theme} />
           <UsageSection
             theme={theme}
             usage={u()}

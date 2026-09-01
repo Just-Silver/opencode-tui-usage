@@ -2,9 +2,14 @@
 - 全程中文沟通与中文 `git commit`
 
 # 项目
-- 单 TUI 插件仓库，非 monorepo，无 `package.json`/`README`/`opencode.json`，无构建/CI 配置
-- 唯一插件：`.opencode/plugins/tui/opencode-tui-usage.tsx`（`Plugin.define id:"opencode-tui-usage"`，薄壳）+ 统一前缀子目录 `opencode-tui-usage/{model,quota,shared,view}/*` 视为单插件，`bun` 以入口打包，子模块仅被入口 `import`；MVVM 四层：`model/` 数据与纯函数（可单测）、`quota/` 查询服务（fetcher+凭据）、`shared/` 纯帮助函数、`view/` UI（Sidebar=ViewModel 编排）
+- 单 TUI 插件仓库，非 monorepo，无 `package.json`/`README`/`opencode.json`，无构建/CI 配置（CI 仅 `.github/workflows/release.yml` 发版）
+- 唯一插件：`.opencode/plugins/tui/opencode-tui-usage.tsx`（`Plugin.define id:"opencode-tui-usage"`，薄壳）+ 统一前缀子目录 `opencode-tui-usage/{model,quota,shared,view,update}/*` 视为单插件，`bun` 以入口打包，子模块仅被入口 `import`；MVVM 四层：`model/` 数据与纯函数（可单测）、`quota/` 查询服务（fetcher+凭据）、`shared/` 纯帮助函数、`view/` UI（Sidebar=ViewModel 编排）、`update/` 更新检查（版本常量+Release 对比）
 - 不要在 `tui/` 下新增顶级 `*.tsx` 作为独立插件，会被当多插件加载
+
+# 发版
+- 版本单一事实源：`.opencode/plugins/tui/opencode-tui-usage/update/version.ts` 的 `VERSION`（SemVer）
+- 流程：改 `VERSION` → commit → `git tag v1.1.0` → `git push origin v1.1.0` → `.github/workflows/release.yml` 自动创建 Release（校验 tag 与 VERSION 一致，不一致即 fail 拦截）
+- 运行时更新提示：插件启动时 `fetch https://api.github.com/repos/Just-Silver/opencode-tui-usage/releases/latest` 对比本地 VERSION，落后则 `view/UpdateBanner.tsx` 黄色横幅提示重跑 `install.sh`；无 Release/网络失败/本地超前 → 静默不提示
 
 # 运行与验证
 - 本地 `Bun 1.3.14`，`TUI` 依赖 `bun:sqlite` 读 `~/.local/share/opencode/opencode.db`
