@@ -10,6 +10,7 @@
 
 - 发布流程接入 git-cliff 自动生成 CHANGELOG
 - 修复 tag 触发的 Release 工作流——detached HEAD 下 git push 需显式指定目标分支
+- 升级 checkout v7 与 action-gh-release v3，消除 Node 20 弃用警告
 
 ### 修复
 
@@ -108,6 +109,7 @@
 ### 杂项
 
 - 更新 LICENSE 版权信息
+- 更新 CHANGELOG 到 v1.0.0
 
 ### 样式
 
