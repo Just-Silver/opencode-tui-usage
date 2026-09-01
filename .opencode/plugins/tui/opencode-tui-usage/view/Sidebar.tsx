@@ -126,21 +126,24 @@ export function Sidebar(props: { sessionID?: string }): JSX.Element {
   onCleanup(() => clearInterval(timer))
 
   return (
-    <Show when={usage()}>
-      {(u) => (
-        <box flexDirection="column" gap={1}>
-          <UpdateBanner theme={theme} />
-          <UsageSection
-            theme={theme}
-            usage={u()}
-            ctxUsage={ctxUsage()}
-            ctxPct={ctxPct()}
-            limit={limit()}
-            cacheRate={cacheRate()}
-          />
-          <QuotaSection theme={theme} quota={quota()} />
-        </box>
-      )}
-    </Show>
+    <box flexDirection="column" gap={1}>
+      <Show when={usage()}>
+        {(u) => (
+          <box flexDirection="column" gap={1}>
+            <UsageSection
+              theme={theme}
+              usage={u()}
+              ctxUsage={ctxUsage()}
+              ctxPct={ctxPct()}
+              limit={limit()}
+              cacheRate={cacheRate()}
+            />
+            <QuotaSection theme={theme} quota={quota()} />
+          </box>
+        )}
+      </Show>
+      {/* 更新提示：不依赖会话数据，放在插件最下方，轻量一行、可关闭 */}
+      <UpdateBanner theme={theme} />
+    </box>
   )
 }
