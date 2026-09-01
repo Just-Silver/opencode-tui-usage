@@ -31,10 +31,11 @@ type CreditsResp = {
 }
 type SubscriptionsResp = { data?: { planId?: string } | null }
 
-// 窗口百分比：used/cap × 100，整数，clamp [0,100]；缺失/非法 → undefined
+// 窗口百分比：used/cap × 100，保留一位小数（供应商自己决定精度），clamp [0,100]；缺失/非法 → undefined
+// 契约：percent 为 0-100 有限数字，UI 层 fmtPctInt 原样透传显示，供应商决定小数位数
 function windowPct(w: { used?: number; cap?: number } | null | undefined): number | undefined {
   if (!w || typeof w.used !== "number" || typeof w.cap !== "number" || w.cap <= 0) return
-  return Math.max(0, Math.min(100, Math.round((w.used / w.cap) * 100)))
+  return Math.max(0, Math.min(100, Math.round((w.used / w.cap) * 1000) / 10))
 }
 
 // 纯转换函数（离线可测）：credits + subscriptions 响应 → QuotaData
@@ -55,7 +56,7 @@ export function mapCommandCode(creditsResp: unknown, subResp: unknown): QuotaDat
   const balance = typeof c.credits?.monthlyCredits === "number" ? c.credits.monthlyCredits : undefined
   if (cap !== undefined && cap > 0 && balance !== undefined && balance <= cap) {
     const used = cap - balance
-    out.monthly = { status: "ok", percent: Math.max(0, Math.min(100, Math.round((used / cap) * 100))) }
+    out.monthly = { status: "ok", percent: Math.max(0, Math.min(100, Math.round((used / cap) * 1000) / 10)) }
   }
 
   if (out.rolling === undefined && out.weekly === undefined && out.monthly === undefined) return undefined

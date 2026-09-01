@@ -47,7 +47,7 @@ test("窗口字段缺失/为 null → 对应窗口 undefined", () => {
   )
   assert.equal(q?.rolling, undefined)
   assert.equal(q?.weekly, undefined)
-  assert.equal(q?.monthly?.percent, 86) // 月窗口不受影响：(70-10)/70 ≈ 85.7 → 86
+  assert.equal(q?.monthly?.percent, 85.7) // 月窗口不受影响：(70-10)/70 = 85.7 → 保留一位小数
 })
 
 test("subscriptions data=null → monthly undefined，5h/周照常", () => {
@@ -88,6 +88,19 @@ test("实测空账户真空用例：credits 全 0 + windowLimits 全 null + data
     { success: true, data: null },
   )
   assert.equal(q, undefined)
+})
+
+test("小用量：保留一位小数（真实场景 0.05/14 → 0.4）", () => {
+  const q = mapCommandCode(
+    {
+      credits: { monthlyCredits: 69.949 },
+      windowLimits: { fiveHour: { used: 0.0508, cap: 14 }, weekly: { used: 0.0508, cap: 35 } },
+    },
+    { success: true, data: { planId: "individual-goat" } },
+  )
+  assert.equal(q?.rolling?.percent, 0.4) // 0.0508/14 = 0.36% → 0.4
+  assert.equal(q?.weekly?.percent, 0.1) // 0.0508/35 = 0.15% → 0.1
+  assert.equal(q?.monthly?.percent, 0.1) // (70-69.949)/70 = 0.07% → 0.1
 })
 
 test("完全空响应/undefined → undefined", () => {
