@@ -6,6 +6,10 @@
 ## [1.0.1] - 2026-09-10
 
 
+### CI
+
+- 修复 Release 工作流 --current 因 CHANGELOG 提交后 HEAD 无 tag 而失败
+
 ### 修复
 
 - 适配 opencode2 beta-19425 插件加载（改包名 + 目录型 tui 入口）
@@ -13,6 +17,7 @@
 ### 杂项
 
 - 更新 CHANGELOG 到 v1.0.0
+- 更新 CHANGELOG 到 v1.0.1
 ## [1.0.0] - 2026-09-01
 
 
