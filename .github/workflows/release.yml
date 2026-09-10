@@ -39,6 +39,17 @@ jobs:
         env:
           OUTPUT: CHANGELOG.md # 全量输出到 CHANGELOG.md
 
+      # 必须放在「提交 CHANGELOG 回仓库」之前：git-cliff --current 要求 HEAD 带 tag，
+      # 而提交 CHANGELOG 会新建一个未打 tag 的提交，导致 --current 报 No tag exists for the current commit
+      - name: 生成当前版本 Release 说明（--current）
+        id: current
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --current --strip header
+        env:
+          OUTPUT: /tmp/RELEASE_BODY.md # 仅当前版本变更
+
       - name: 提交 CHANGELOG 回仓库
         run: |
           git config user.name "github-actions[bot]"
@@ -48,15 +59,6 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: 更新 CHANGELOG 到 v${{ steps.version.outputs.version }}"
           # tag 触发时 checkout 处于 detached HEAD，必须显式指定目标分支
           git push origin HEAD:main
-
-      - name: 生成当前版本 Release 说明（--current）
-        id: current
-        uses: orhun/git-cliff-action@v4
-        with:
-          config: cliff.toml
-          args: --current --strip header
-        env:
-          OUTPUT: /tmp/RELEASE_BODY.md # 仅当前版本变更
 
       - name: 创建 Release
         uses: softprops/action-gh-release@v3
