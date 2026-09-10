@@ -3,7 +3,7 @@
 // 业务纯函数调 model/，查询服务调 quota/，展示组件调 view/。
 /** @jsxImportSource @opentui/solid */
 import { createEffect, createMemo, createSignal, onCleanup, Show, type JSX } from "solid-js"
-import { usePlugin } from "@opencode-ai/plugin/tui"
+import { usePlugin } from "@opencode/plugin/tui"
 import { appendFileSync, rmSync, statSync } from "fs"
 import { homedir } from "os"
 import { join } from "path"

@@ -8,8 +8,8 @@ import {
   contextUsageOf,
   resolveContextLimit,
   resolveProviderID,
-} from "../.opencode/plugins/tui/opencode-tui-usage/model/usage.ts"
-import type { MessageLike } from "../.opencode/plugins/tui/opencode-tui-usage/model/types.ts"
+} from "../.opencode/plugins/opencode-tui-usage/model/usage.ts"
+import type { MessageLike } from "../.opencode/plugins/opencode-tui-usage/model/types.ts"
 
 // ─── aggregateUsage ───
 test("aggregateUsage：多条消息 token 累加", () => {

@@ -4,11 +4,11 @@ import assert from "node:assert/strict"
 import {
   compareVersions,
   parseVersion,
-} from "../.opencode/plugins/tui/opencode-tui-usage/update/version.ts"
+} from "../.opencode/plugins/opencode-tui-usage/update/version.ts"
 import {
   resolveUpdate,
   fetchLatestRelease,
-} from "../.opencode/plugins/tui/opencode-tui-usage/update/index.ts"
+} from "../.opencode/plugins/opencode-tui-usage/update/index.ts"
 
 // ─── version.ts ───
 test("parseVersion：SemVer 与 v 前缀", () => {

@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
-import { Plugin } from "@opencode-ai/plugin/tui"
-import { Sidebar } from "./opencode-tui-usage/view/Sidebar.tsx"
+import { Plugin } from "@opencode/plugin/tui"
+import { Sidebar } from "./view/Sidebar.tsx"
 
 export default Plugin.define({
   id: "opencode-tui-usage",

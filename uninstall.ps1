@@ -2,19 +2,25 @@
 # opencode-tui-usage 卸载脚本（PowerShell 7.6.5）
 # 用法: irm https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main/uninstall.ps1 | iex
 $ErrorActionPreference = "Stop"
-function Get-GlobalTuiDir {
+function Get-GlobalPluginsDir {
   $base = if ($env:XDG_CONFIG_HOME -and $env:XDG_CONFIG_HOME.Trim()) { $env:XDG_CONFIG_HOME } else { Join-Path $HOME ".config" }
-  return Join-Path $base "opencode\plugins\tui"
+  return Join-Path $base "opencode\plugins"
 }
-$dest = Get-GlobalTuiDir
+$pluginsDir = Get-GlobalPluginsDir
+$dest = Join-Path $pluginsDir "opencode-tui-usage"
 Write-Host "→ 目标目录: $dest"
-$entry = Join-Path $dest "opencode-tui-usage.tsx"
-$dir = Join-Path $dest "opencode-tui-usage"
-if (Test-Path $entry) { Remove-Item -Force $entry; Write-Host "✓ 已删除 $entry" -ForegroundColor Green } else { Write-Host "- 未找到 $entry" -ForegroundColor Yellow }
-if (Test-Path $dir) { Remove-Item -Recurse -Force $dir; Write-Host "✓ 已删除 $dir" -ForegroundColor Green } else { Write-Host "- 未找到 $dir" -ForegroundColor Yellow }
-# 清理异常中断可能残留的 STAGE（安装脚本的临时对象）
-foreach ($p in @("$dest\.tmp.opencode-tui-usage.tsx", "$dest\.tmp.opencode-tui-usage")) {
-  if (Test-Path $p) { Remove-Item -Recurse -Force $p; Write-Host "✓ 已删除残留 $p" -ForegroundColor Green }
+foreach ($p in @($dest, (Join-Path $pluginsDir ".tmp.opencode-tui-usage"))) {
+  if (Test-Path $p) { Remove-Item -Recurse -Force $p; Write-Host "✓ 已删除 $p" -ForegroundColor Green } else { Write-Host "- 未找到 $p" -ForegroundColor Yellow }
+}
+# 清理旧版（≤18707 布局：嵌套 plugins/tui/ 下的 tsx + 目录）迁移残留
+$legacy = @(
+  (Join-Path $pluginsDir "tui\opencode-tui-usage.tsx"),
+  (Join-Path $pluginsDir "tui\opencode-tui-usage"),
+  (Join-Path $pluginsDir "tui\.tmp.opencode-tui-usage.tsx"),
+  (Join-Path $pluginsDir "tui\.tmp.opencode-tui-usage")
+)
+foreach ($p in $legacy) {
+  if (Test-Path $p) { Remove-Item -Recurse -Force $p; Write-Host "✓ 已删除旧版残留 $p" -ForegroundColor Green }
 }
 Write-Host ""
 Write-Host "下一步: opencode2 service restart"

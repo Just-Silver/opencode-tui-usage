@@ -18,7 +18,7 @@ curl -fsSL https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main
 发版流程（Actions 自动出 Release + 自动更新 CHANGELOG）：
 
 ```bash
-# 1. 改 .opencode/plugins/tui/opencode-tui-usage/update/version.ts 的 VERSION
+# 1. 改 .opencode/plugins/opencode-tui-usage/update/version.ts 的 VERSION
 # 2. 提交（建议用约定式提交前缀，便于 CHANGELOG 归类）
 git commit -m "feat: 新增 XX"
 # 3. 打 tag 并推送（触发 Actions）

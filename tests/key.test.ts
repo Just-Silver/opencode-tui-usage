@@ -12,7 +12,7 @@ import { dirname, join } from "node:path"
 import {
   resolveApiKeyFromConfig,
   resolveProviderKey,
-} from "../.opencode/plugins/tui/opencode-tui-usage/quota/key.ts"
+} from "../.opencode/plugins/opencode-tui-usage/quota/key.ts"
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures")
 const projectDir = join(fixtures, "project")

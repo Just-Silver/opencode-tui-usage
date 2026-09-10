@@ -1,9 +1,9 @@
 // ─── shared/ 共享帮助函数单元测试 ───
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { fmtPct, fmtPctInt, fmtTokens, quotaPct, sharePct, trimZero } from "../.opencode/plugins/tui/opencode-tui-usage/shared/format.ts"
-import { normID } from "../.opencode/plugins/tui/opencode-tui-usage/shared/id.ts"
-import { parseJson } from "../.opencode/plugins/tui/opencode-tui-usage/shared/jsonc.ts"
+import { fmtPct, fmtPctInt, fmtTokens, quotaPct, sharePct, trimZero } from "../.opencode/plugins/opencode-tui-usage/shared/format.ts"
+import { normID } from "../.opencode/plugins/opencode-tui-usage/shared/id.ts"
+import { parseJson } from "../.opencode/plugins/opencode-tui-usage/shared/jsonc.ts"
 
 // ─── id：normID 归一化矩阵 ───
 test("normID：小写 + 只留 [a-z]，任意写法归一", () => {

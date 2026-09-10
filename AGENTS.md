@@ -3,11 +3,11 @@
 
 # 项目
 - 单 TUI 插件仓库，非 monorepo，无 `package.json`/`README`/`opencode.json`，无构建/CI 配置（CI 仅 `.github/workflows/release.yml` 发版）
-- 唯一插件：`.opencode/plugins/tui/opencode-tui-usage.tsx`（`Plugin.define id:"opencode-tui-usage"`，薄壳）+ 统一前缀子目录 `opencode-tui-usage/{model,quota,shared,view,update}/*` 视为单插件，`bun` 以入口打包，子模块仅被入口 `import`；MVVM 四层：`model/` 数据与纯函数（可单测）、`quota/` 查询服务（fetcher+凭据）、`shared/` 纯帮助函数、`view/` UI（Sidebar=ViewModel 编排）、`update/` 更新检查（版本常量+Release 对比）
-- 不要在 `tui/` 下新增顶级 `*.tsx` 作为独立插件，会被当多插件加载
+- 唯一插件：`.opencode/plugins/opencode-tui-usage/`（目录型插件，`Plugin.define id:"opencode-tui-usage"`），入口 `tui.tsx`（TUI 入口，薄壳，import `@opencode/plugin/tui`）+ 同目录子模块 `{model,quota,shared,view,update}/*` 视为单插件，子模块仅被入口 `import`；MVVM 四层：`model/` 数据与纯函数（可单测）、`quota/` 查询服务（fetcher+凭据）、`shared/` 纯帮助函数、`view/` UI（Sidebar=ViewModel 编排）、`update/` 更新检查（版本常量+Release 对比）
+- 布局硬约束（opencode2 ≥ beta-18721 发现器）：插件必须是 `.opencode/plugins/`（或 `plugin/`）的**直接子目录**，目录内 `tui.tsx` = TUI 入口（`index.ts`/`server.ts` = server 入口）；**不可**再嵌套（旧 `plugins/tui/opencode-tui-usage.tsx` 形态在 19425 上不被发现、不加载）；直接子 `.tsx` 文件也不会被发现（只认 `.ts`/`.js`）。只有 `tui.tsx`、无 server 入口 → server 端直接忽略（规避 server 端 `context.ui` 为 undefined 的坑）
 
 # 发版
-- 版本单一事实源：`.opencode/plugins/tui/opencode-tui-usage/update/version.ts` 的 `VERSION`（SemVer）
+- 版本单一事实源：`.opencode/plugins/opencode-tui-usage/update/version.ts` 的 `VERSION`（SemVer）
 - 流程：改 `VERSION` → commit → `git tag v1.1.0` → `git push origin v1.1.0` → `.github/workflows/release.yml` 自动创建 Release（校验 tag 与 VERSION 一致，不一致即 fail 拦截）
 - 运行时更新提示：插件启动时 `fetch https://api.github.com/repos/Just-Silver/opencode-tui-usage/releases/latest` 对比本地 VERSION，落后则 `view/UpdateBanner.tsx` 黄色横幅提示重跑 `install.sh`；无 Release/网络失败/本地超前 → 静默不提示
 
@@ -15,21 +15,17 @@
 - 本地 `Bun 1.3.14`，`TUI` 依赖 `bun:sqlite` 读 `~/.local/share/opencode/opencode.db`
 - 热重载：`B/~BUN/root/chunk-*.js?mtime` 内存打包，opencode2 动态加载，新增/重命名/删除/同名覆盖均无需重启
 - 日志：TUI 插件**无 `app.log`**（client 为 HTTP 客户端；旧文档 `ctx.client.app.log` 会直接崩溃，已踩坑）。`console` 被 TUI 全屏覆盖**不可见**（不进 opencode.log）。诊断走文件日志 `~/.local/share/opencode/log/tui-usage.log`：**默认禁用零开销**，排查时 `$env:TUI_USAGE_PROBE="1"; opencode` 启用（TUI 插件跑在客户端进程），文件超 1MB 自动重建（官方 opencode.log 无限 append 无任何清理，我们自管）；失败统一 `60s` 限流不重试
-- 校验：单元测试 `node --test tests/*.test.ts`（node ≥23.6 原生 TS strip，零依赖；7 个文件：key/quota/model/quota-store/shared/command-code/discovery，全部须过）；改后打包语法检查用 esbuild：`npx --yes esbuild .opencode/plugins/tui/opencode-tui-usage.tsx --bundle --platform=node --format=esm --jsx=automatic --jsx-import-source=@opentui/solid --external:@opencode-ai/plugin/tui --external:@opentui/solid --external:solid-js --outfile=$env:TEMP\opencode\tui-bundle-check.js`（`Done in` 即通过）；`opencode` 启动侧边栏无 `sidebar.content` 崩溃即正常
+- 校验：单元测试 `node --test tests/*.test.ts`（node ≥23.6 原生 TS strip，零依赖；8 个文件：key/quota/model/quota-store/shared/command-code/discovery/update，全部须过）；改后打包语法检查用 esbuild：`npx --yes esbuild .opencode/plugins/opencode-tui-usage/tui.tsx --bundle --platform=node --format=esm --jsx=automatic --jsx-import-source=@opentui/solid --external:@opencode/plugin/tui --external:@opentui/solid --external:solid-js --outfile=$env:TEMP\opencode\tui-bundle-check.js`（`Done in` 即通过）；`opencode` 启动侧边栏无 `sidebar.content` 崩溃即正常
 - 官方源码速查：v2 仓库 = `sst/opencode`（TS monorepo，**`opencode-ai/opencode` 已归档勿用**）；日志实现 `packages/core/src/observability/logging.ts`（`Logger.toFile(..., { flag: "a" })`，**opencode.log 无轮转/截断/清理**）；查代码用 sparse clone 绕过 GitHub code search 对超大仓库的截断：`git clone --depth 1 --filter=blob:none --sparse <url> && git -C <dir> sparse-checkout set packages/core packages/tui`
 
-# opencode2 版本与插件加载（上游回归，2026-09-01 三层根因实锤）
-- **回归范围**：beta 通道 `0.0.0-beta-18721`（8/31 07:28 构建）起 TUI/CLI 本地插件**完全不加载**；`0.0.0-beta-18743`（8/31 16:22）同坏；npm `dev` tag 已到 18777（未实测，ror 8/12 在 dev dab2637217 验证主症状已修 → **dev 修复未传导到 beta 管道**，两者编号体系相同但发布脱节）。最后一个无 bug 版本 **`0.0.0-beta-18707`（8/31 01:12）**；`latest`/`next` tag（17823）勿用；`1.18.x` 不是 V2
-- **三层根因（全部实测/日志实锤，2026-09-01 调查）**：
-  1. **发现器严格化**：只认 `plugins/` 根层 direct `.ts`/`.js`（官方文档形态）；嵌套子目录 + `.tsx` + 非 index 名全被静默跳过（18707 宽容 → 回归）。包目录形态（`index.tsx`/`tui.tsx`）实测也不被发现
-  2. **依赖外置化**：server 端插件 import `@opencode-ai/plugin` 改走磁盘 `~/.config/opencode/node_modules/`，官方安装流程**从不安装 V2 依赖** → import 失败静默；18707 内嵌自带。手动装齐（`@opencode-ai/plugin@beta` + `@opencode-ai/theme` + `@opentui/core` + `@opentui/solid` + `solid-js`，落盘 `~/.config/opencode/package.json`）后 server 端 import 通过；历史坑：磁盘有 7/2 V1 遗留 `@opencode-ai/plugin@1.17.13`，会报 `Cannot find package '@opentui/keymap'` 掩盖真相
-  3. **加载器 mtime URL bug（上游 bug，无法绕过）**：加载器用带 `?mtime=` 查询串的 file:// URL 动态 import，模块解析器拒绝 → service 日志 `WARN failed to load plugin ... Cannot find module '...ts?mtime=...'`。与 #42481 同源（`ERR_UNKNOWN_BUILTIN_MODULE: file:///...js?mtime=...`）；修复 PR #42485（改用 importModule，SEA-safe）**未合并**，base 分支 v2
-- **判据**：插件是否「被发现」看 TUI Plugins 面板/server 列表；是否「被加载」看 `~/.local/share/opencode/log/opencode.log` 的 `level=WARN failed to load plugin` + cause（ResolveMessage/TypeError）。server 端激活所有插件（含 TUI-only），**setup 里 TUI 专属 API（ui.*、keymap）必须守卫**（server 端 `context.ui` 为 undefined，无守卫报 `TypeError` 但插件仍进列表）
-- **我方实证提交：#46408**（Windows + beta 时间线 + 三层根因 + service 日志证据，2026-08-31 初报 / 09-01 更新），与 #42051 同族但**非 cli.json 迁移**（我们零配置，纯目录自动发现）；上游相关：#42051（OPEN）、#41574、#42763（Windows，OPEN）、#42481、#42485（PR 未合并）
-- **静态分析结论**：18707/18721/18743 三版二进制（`%TEMP%\opencode\static-diff\`）插件发现字符串区逐字符一致、bun runtime 错误表三版同偏移同内容、84.7MB 后模块图 14K 块全异 → **产物全量重打包**；8/31 01:12→07:28 dev 仅 1 条无关提交（v1 backport）→ beta 构建与 dev 提交线脱节（疑似独立构建管道/分支）
-- 版本管理：npm 全局 `@opencode-ai/cli`。降级：`npm install -g @opencode-ai/cli@0.0.0-beta-18707`（写死版本号勿用 tag）；升回：等 #42485 合并并发布到 beta 后 `npm install -g @opencode-ai/cli@beta`
-- **禁止自升级**：全局 `~/.config/opencode/opencode.json` 配 `"autoupdate": false`（`"notify"` 只提示不装；**项目级值被忽略必须放全局**）。本次 18707→18721 即自升级所为
-- 排查提示：升级 opencode2 后侧边栏插件消失 = 先查版本号是否 ≥18721，再看 service 日志 WARN `failed to load plugin` 的 cause 分层定位（发现/依赖/加载），再怀疑配置
+# opencode2 版本与插件加载
+- **当前推荐版本 `0.0.0-beta-19425`（2026-09-10）已实测可加载本插件**（本文档即修复于 19425）
+- 19425 双层变化（相对 18707，实测）：
+  1. **包名改名**：运行时注入的插件模块由 `@opencode-ai/plugin/tui` 改为 `@opencode/plugin/tui`（**无兼容重映射**，旧名 import 直接 ResolveMessage 失败）；npm 主包同时 `@opencode-ai/cli` → `@opencode/cli`
+  2. **目录型插件布局**：发现器只扫 `plugins/`（与 `plugin/`）**直接子项**；直接子 `.ts`/`.js` = 文件插件；直接子目录 = 目录插件，入口经解析器取 `tui.tsx`（TUI）/`index.*`、`server.*`（server）。旧的嵌套 `plugins/tui/opencode-tui-usage.tsx` 形态在 19425 上**既不被服务端也不被 TUI 加载**（探针实测空日志）。直接子 `.tsx` 文件（非目录）也不被发现（文件只认 `.ts`/`.js`，实测）
+- **判据**：`opencode2 plugin list` 列出候选（目录型只看 `tui` 入口存在与否）；真实加载看 `opencode2 api --standalone --print-logs GET /api/plugin` 的 stderr `msg="loading plugin"` + `WARN failed to load plugin ... cause`；TUI 侧看探针文件 `~/.local/share/opencode/log/tui-usage.log`（`$env:TUI_USAGE_PROBE=1`）
+- **注意**：`plugin list` 读后台 **service 缓存**，改磁盘后需 `opencode2 service restart`（或等 `plugin update`）才刷新；`api --standalone` 起私有子服务可即时看真值
+- **历史（≤18707，2026-09-01 三层根因，已过时仅供参考）**：18721/18743 曾出现「发现器只认根层 direct `.ts`/`.js` + 依赖外置化（server 端 import `@opencode-ai/plugin` 走磁盘 `~/.config/opencode/node_modules/`，官方从不安装）+ 加载器 `?mtime=` file:// URL bug」；我方实证提交 #46408、#42051 同族
 
 # 关键逻辑
 - `sidebar.content` 的 `render({sessionID})` 仅跟当前展示会话，空会话 `providerID` 返回 `undefined` 不查额度、有缓存 `Map<providerID,QuotaData>` 切回瞬时显示，子代理独立 `sessionID` 不进侧边栏不触发
