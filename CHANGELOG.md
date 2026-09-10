@@ -3,6 +3,16 @@
 本仓库所有重要变更记录于此，格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.0.1] - 2026-09-10
+
+
+### 修复
+
+- 适配 opencode2 beta-19425 插件加载（改包名 + 目录型 tui 入口）
+
+### 杂项
+
+- 更新 CHANGELOG 到 v1.0.0
 ## [1.0.0] - 2026-09-01
 
 
