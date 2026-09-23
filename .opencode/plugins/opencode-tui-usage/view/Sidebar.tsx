@@ -20,7 +20,6 @@ import { fetchQuota, getProviderApiUrl, isQuotaProvider } from "../quota/index.t
 import { resolveProviderKey } from "../quota/key.ts"
 import { QuotaSection } from "./QuotaSection.tsx"
 import { UsageSection } from "./UsageSection.tsx"
-import { UpdateBanner } from "./UpdateBanner.tsx"
 
 // 进程内单例（跨 render 持久，与重构前模块级 Map 语义一致；deps 仅首次创建时生效）
 let store: ReturnType<typeof getQuotaStore> | undefined
@@ -142,8 +141,6 @@ export function Sidebar(props: { sessionID?: string }): JSX.Element {
           </box>
         )}
       </Show>
-      {/* 更新提示：不依赖会话数据，放在插件最下方，轻量一行、可关闭 */}
-      <UpdateBanner theme={theme} />
     </box>
   )
 }
