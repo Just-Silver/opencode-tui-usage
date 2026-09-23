@@ -45,7 +45,10 @@
   "version": "2.0.0",
   "type": "module",
   "files": [".opencode/plugins/opencode-tui-usage"],
-  "exports": { "./tui": "./.opencode/plugins/opencode-tui-usage/tui.tsx" },
+  "exports": {
+    "./server": "./.opencode/plugins/opencode-tui-usage/server.ts",
+    "./tui": "./.opencode/plugins/opencode-tui-usage/tui.tsx"
+  },
   "dependencies": { "@opencode/plugin": "latest" },
   "peerDependencies": {
     "@opentui/core": ">=0.5.8",
@@ -60,7 +63,8 @@
 | 字段 | 来源/理由 |
 |---|---|
 | `name` | V2 源码 `resolvePluginId` 对 npm 源取 `package.json.name` 作为插件身份；须为 `opencode-tui-usage`，与插件 `id` 一致 |
-| `exports["./tui"]` | V2 源码 `resolvePackageEntrypoint` 只认 `./tui`（TUI）；我们无 server 入口，故不写 `.` |
+| `exports["./tui"]` | V2 源码 `resolvePackageEntrypoint` 只认 `./tui`（TUI） |
+| `exports["./server"]` | **实测必需**：纯 TUI-only 包会被 server 端跳过，CLI 拿不到该插件→`./tui` 不加载；加一个 no-op server 入口（不触碰 `context.ui`）后配置安装才生效（详见 plan「验证记录」） |
 | `type` | 文档 "Publish and load" 示例（ESM） |
 | `files` | 标准 npm 字段；兜住 `.opencode/` 点目录不被打包剔除（本方案独有风险） |
 | `version` | 发版三方一致校验（tag == `update/version.ts` VERSION == 此值） |
@@ -73,6 +77,7 @@
 | 动作 | 对象 |
 |---|---|
 | 新增 | `package.json` |
+| 新增 | `.opencode/plugins/opencode-tui-usage/server.ts`（no-op server 入口，配置安装可达的必要条件） |
 | 新增 | `tests/package.test.ts`（离线）：断言 `exports["./tui"]` 指向的文件存在、且被 `files` 覆盖 |
 | 删除 | `install.sh`、`install.ps1`、`uninstall.sh`、`uninstall.ps1` |
 | 改写 | `README.md`：安装/卸载/发布改为「配置一行 + `opencode plugin` 命令」，删除全部 curl/脚本说明 |

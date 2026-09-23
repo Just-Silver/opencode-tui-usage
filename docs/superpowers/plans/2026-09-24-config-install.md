@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - 包名 / 插件 id 均为 `opencode-tui-usage`；**不发布 npm registry**。
-- **仅暴露 TUI 入口** `exports["./tui"]`；不声明 `.`、`main`、`server.tsx`（无 server 入口是设计）。
+- **仅暴露 TUI 入口** `exports["./tui"]`；**还必须暴露 no-op `exports["./server"]`**（实测：纯 TUI-only 包会被 server 跳过、CLI 拿不到，配置安装失效）；不声明 `main`/`server.tsx` 之外的入口。server 入口不得触碰 `context.ui`。
 - 版本三方一致：`tag == update/version.ts 的 VERSION == package.json.version`；**VERSION 为运行时唯一事实源**，`package.json.version` 为其镜像。
 - 安装主写法 `"plugins": ["Just-Silver/opencode-tui-usage"]`；钉版本写法 `"plugins": ["github:Just-Silver/opencode-tui-usage#v2.0.0"]`。
 - 更新/卸载走 `opencode plugin update|remove <目标>`（目标写法以 Task 3 探针结论为准）。
@@ -456,12 +456,18 @@ git commit -m "docs: README 改为配置安装（安装/更新/卸载/迁移）"
 - Consumes: Task 3 Step 5 结论
 - Produces: 仓库约定与新分发方式一致
 
-- [ ] **Step 1: 改「项目」段**
+- [ ] **Step 1: 改「项目」段与「布局硬约束」段**
 
 把首段中 `无 package.json/README/opencode.json` 的表述改为：
 
 ```
-- 单 TUI 插件仓库，非 monorepo；**分发为配置安装**：根 `package.json` 仅暴露 `exports["./tui"]` → `.opencode/plugins/opencode-tui-usage/tui.tsx`，不发布 npm registry（CI 仅 `.github/workflows/release.yml` 发版）
+- 单 TUI 插件仓库，非 monorepo；**分发为配置安装**：根 `package.json` 暴露 `exports["./server"]`（no-op）与 `exports["./tui"]` → `.opencode/plugins/opencode-tui-usage/{server,tui}.tsx`，不发布 npm registry（CI 仅 `.github/workflows/release.yml` 发版）
+```
+
+「布局硬约束」段里把「只有 `tui.tsx`、无 server 入口」改为：
+
+```
+- 入口为 `tui.tsx`（TUI，import `@opencode/plugin/tui`）+ `server.ts`（**no-op** server 入口，import `@opencode/plugin`，**不得触碰 `context.ui`**）：实测纯 TUI-only 包会被 server 跳过、CLI 拿不到，配置安装失效，故必须有 server 入口
 ```
 
 同一段里把 `update/` 的描述从「更新检查（版本常量+Release 对比）」改为「版本常量」：
@@ -703,3 +709,19 @@ Expected: 通过。
 - **Spec 覆盖**：spec §4.1→T1；§4.2（新增包/测试→T1，删脚本→T5，README→T6，AGENTS→T7，**删除更新横幅与更新检查→T8**，release.yml→T9，CHANGELOG→T11）；§4.3→T6/T7；§4.4→T9/T11；§5.1 探针 1→T2、探针 2→T3、探针 3→T3 Step5；§5.2→T10；§6 回退→T4；§7 迁移→T6；§8 待定→T3 记录。
 - **占位符扫描**：无 TBD/TODO；命令与代码均为可执行内容。
 - **类型/命名一致**：包名 `opencode-tui-usage`、入口 `exports["./tui"]`、`VERSION`/`package.json.version` 全篇一致；Task 4 变更路径已同步 T4 Step 2 与 T4 Step 4 命令。
+
+## 验证记录（实测，2026-09-24，本机 opencode v2.0.15）
+
+探针方式：复制插件到临时工程、改 id、在模块顶层写唯一标记文件/用 `TUI_USAGE_PROBE=1` 日志；拉 TUI 若干秒后判定。全局脚本插件在测试期间移出 `plugins/` 目录以免混淆。
+
+| 场景 | 结果 |
+|---|---|
+| 发现式 `.opencode/plugins/<dir>/tui.tsx` | ✅ 加载 |
+| `opencode.jsonc` `plugins` + 包**仅** `./tui`（file://） | ❌ 不加载 |
+| `opencode.jsonc` `plugins` + 包**仅** `./tui`（git 分支） | ❌ 不加载 |
+| `opencode.jsonc` `plugins` + `."`/`./tui`（file://，含 no-op server） | ❌ 不加载（file:// 形态） |
+| `tui.jsonc` `plugin`（file:// / git） | ❌ 不加载 |
+| **`opencode.jsonc` `plugins` + `./server`(no-op) + `./tui`（git 分支）** | ✅ **加载成功** |
+| 临时工程非 git 仓库 → 改到真 git 仓库复测（仅 `./tui`） | ❌ 仍不加载 |
+
+**结论**：配置安装可行的**必要条件**是包同时暴露 `./server`（让 server 端可见，server 入口不得触碰 `context.ui`）与 `./tui`。纯 TUI-only 包在 2.0.15 上无法经配置安装。
