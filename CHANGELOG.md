@@ -3,6 +3,17 @@
 本仓库所有重要变更记录于此，格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [2.0.1] - 2026-09-23
+
+
+### 文档
+
+- README 只保留用户向内容（维护者发版说明留在 AGENTS）并将版本升至 2.0.1
+- README 只保留用户向内容；版本升至 2.0.1（破坏性变更）
+
+### 杂项
+
+- 更新 CHANGELOG 到 v2.0.0
 ## [2.0.0] - 2026-09-23
 
 
