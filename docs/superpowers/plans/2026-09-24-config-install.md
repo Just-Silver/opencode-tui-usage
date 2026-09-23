@@ -85,11 +85,13 @@ test("exports['./tui'] 指向真实存在的 TUI 入口", () => {
 })
 
 test("files 覆盖 exports 指向的入口（防点目录被剔除）", () => {
-  const entry = pkg.exports["./tui"]
-  const covered = pkg.files.some(
-    (f: string) => entry === f || entry.startsWith(f.replace(/\/+$/, "") + "/"),
-  )
-  assert.ok(covered, `files 未覆盖入口: ${entry}`)
+  const norm = (s: string) => s.replace(/^\.\//, "").replace(/\/+$/, "")
+  const entry = norm(pkg.exports["./tui"])
+  const covered = pkg.files.some((f: string) => {
+    const dir = norm(f)
+    return entry === dir || entry.startsWith(dir + "/")
+  })
+  assert.ok(covered, `files 未覆盖入口: ${pkg.exports["./tui"]}`)
 })
 
 test("package.json.version 与运行时 VERSION 一致", () => {
