@@ -27,6 +27,7 @@
 - 用户仅通过配置一行完成安装；更新与卸载有明确、文档化的操作。
 - 删除 4 个安装/卸载脚本及全部相关文档。
 - 仓库本身成为可从 GitHub 直接安装的合法 npm 包（根 `package.json`），**不发布 npm registry**。
+- **移除运行时更新检查与侧边栏更新横幅**：更新交由 opencode 的包管理（`opencode plugin update`；未钉版本启动时可能自动刷新），插件不再自查 Release。
 
 ## 3. 非目标
 
@@ -76,7 +77,11 @@
 | 删除 | `install.sh`、`install.ps1`、`uninstall.sh`、`uninstall.ps1` |
 | 改写 | `README.md`：安装/卸载/发布改为「配置一行 + `opencode plugin` 命令」，删除全部 curl/脚本说明 |
 | 改写 | `AGENTS.md`：布局硬约束、发版、运行与验证三节中所有「install.sh 分发」描述 |
-| 改写 | `.opencode/plugins/opencode-tui-usage/view/UpdateBanner.tsx`：文案 `重跑 install.sh` → `更新插件后重启` |
+| 删除 | `.opencode/plugins/opencode-tui-usage/view/UpdateBanner.tsx`（更新横幅整块移除） |
+| 改写 | `.opencode/plugins/opencode-tui-usage/view/Sidebar.tsx`：移除 `UpdateBanner` 的 import 与渲染 |
+| 删除 | `.opencode/plugins/opencode-tui-usage/update/index.ts`（更新检查逻辑，随横幅一并移除） |
+| 精简 | `.opencode/plugins/opencode-tui-usage/update/version.ts`：仅保留 `VERSION` 常量（移除 parse/compare 纯函数） |
+| 删除 | `tests/update.test.ts`（测的都是被移除的更新检查逻辑） |
 | 改写 | `.github/workflows/release.yml`：一致性校验扩展为 `package.json.version == update/version.ts VERSION == tag` |
 | 重生成 | `CHANGELOG.md`（发版时由 git-cliff 生成，不手改） |
 
@@ -97,7 +102,7 @@
 
 ### 4.4 发版
 
-保留现有 GitHub Release 流程（`v*` tag → Actions）。`#vX.Y.Z` 依赖 tag，更新检测依赖 Release，二者都必须保留。新增校验：`package.json.version`、`update/version.ts` 的 `VERSION`、tag 三者一致，不一致即 fail。
+保留现有 GitHub Release 流程（`v*` tag → Actions）：`#vX.Y.Z` 钉版本依赖 tag，CHANGELOG 依赖 Release。**运行时更新检查已移除**，更新由 `opencode plugin update` 承担（未钉版本的 Git 规格由 opencode 在解析时刷新）。新增校验：`package.json.version`、`update/version.ts` 的 `VERSION`、tag 三者一致，不一致即 fail。
 
 版本同源：**`update/version.ts` 的 `VERSION` 仍是运行时唯一事实源**，`package.json.version` 为其镜像（由 CI 校验一致），不引入第三个来源。
 
