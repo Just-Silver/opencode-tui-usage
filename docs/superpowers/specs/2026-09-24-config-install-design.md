@@ -72,7 +72,7 @@
 | 动作 | 对象 |
 |---|---|
 | 新增 | `package.json` |
-| 新增 | 离线单测：断言 `exports["./tui"]` 指向的文件存在、且被 `files` 覆盖 |
+| 新增 | `tests/package.test.ts`（离线）：断言 `exports["./tui"]` 指向的文件存在、且被 `files` 覆盖 |
 | 删除 | `install.sh`、`install.ps1`、`uninstall.sh`、`uninstall.ps1` |
 | 改写 | `README.md`：安装/卸载/发布改为「配置一行 + `opencode plugin` 命令」，删除全部 curl/脚本说明 |
 | 改写 | `AGENTS.md`：布局硬约束、发版、运行与验证三节中所有「install.sh 分发」描述 |
@@ -90,13 +90,18 @@
 { "plugins": ["github:Just-Silver/opencode-tui-usage#v2.0.0"] }
 ```
 
-- 更新：`opencode plugin update opencode-tui-usage`（或重启 opencode）
-- 卸载：`opencode plugin remove opencode-tui-usage`（或删配置行）
+- 更新：`opencode plugin update <配置中的目标>`（如 `Just-Silver/opencode-tui-usage`；或直接重启 opencode）
+- 卸载：`opencode plugin remove <配置中的目标>`（或删配置行）
 - 安装位置由 opencode 管理于 `global.cache/packages/…`，用户不再接触文件路径。
+- **目标写法待实测**：源码中安装目录名取「原始 spec」，而 `plugin update/remove` 到底接受包名还是 spec 未在文档明确，以探针 3 结论为准再定稿文档。
 
 ### 4.4 发版
 
 保留现有 GitHub Release 流程（`v*` tag → Actions）。`#vX.Y.Z` 依赖 tag，更新检测依赖 Release，二者都必须保留。新增校验：`package.json.version`、`update/version.ts` 的 `VERSION`、tag 三者一致，不一致即 fail。
+
+版本同源：**`update/version.ts` 的 `VERSION` 仍是运行时唯一事实源**，`package.json.version` 为其镜像（由 CI 校验一致），不引入第三个来源。
+
+上线次序：实现并**通过前置探针** → 合并 → 打 `v2.0.0` tag 发 Release；README 里的 `#v2.0.0` 写法以该 Release 存在为前提。
 
 ## 5. 验证方案与「成功」标准
 
@@ -105,11 +110,11 @@
 1. **本地路径快速验证入口解析**：临时项目写 `{"plugins":["file:///<repo-abs-path>"]}`，跑
    `opencode api --standalone --print-logs GET /api/plugin`。预期：解析到 `exports["./tui"]`；server 端因无 `./server` 判为 missing（非 error）。
 2. **Git 规格真验证**：写 `{"plugins":["github:Just-Silver/opencode-tui-usage#<本次分支>"]}`，跑上述命令 + TUI 侧 `$env:TUI_USAGE_PROBE="1"`。预期：arborist 能 clone+安装；`.opencode` 点目录在安装产物内；CLI 侧加载 TUI；探针日志出现；侧边栏无崩溃；`bun:sqlite` 与 `quota/providers/` 扫描仍工作。
-3. **卸载/更新验证**：`opencode plugin remove` 后不再加载；`opencode plugin update` 能识别并可更新。
+3. **更新/卸载验证**：分别用「包名 `opencode-tui-usage`」与「配置目标 `Just-Silver/opencode-tui-usage`」调用 `opencode plugin update` / `opencode plugin remove`，确认哪种能识别，据此定稿文档；确认移除后不再加载。
 
 ### 5.2 成功标准
 
-本机 opencode v2.0.15 上：写入配置行 → 自动安装 → 侧边栏额度正常显示、server 无崩溃、`opencode plugin update` 可拉到新版本。**全部通过后才删除旧脚本**；探针失败则停下重新设计，不删任何东西。
+本机 opencode v2.0.15 上：写入配置行 → 自动安装 → 侧边栏正常渲染（有额度数据时显示额度，无则显示上下文/缓存区块）、server 无崩溃、`opencode plugin update` 可拉到新版本。**全部通过后才删除旧脚本**；探针失败则停下重新设计，不删任何东西。
 
 ## 6. 风险与回退
 
@@ -128,3 +133,4 @@
 
 - 运行时解析的是 opencode 注入的 `@opencode/plugin/tui` 还是安装下来的 npm 副本？（探针 2 观察）
 - `files` 能否稳定覆盖点目录（探针 2 观察）；若不能，采用第 6 节回退。
+- `opencode plugin update/remove` 的目标写法（包名 vs 配置 spec）？（探针 3 观察）
