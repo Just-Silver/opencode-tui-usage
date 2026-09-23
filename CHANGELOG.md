@@ -3,6 +3,40 @@
 本仓库所有重要变更记录于此，格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [2.0.0] - 2026-09-23
+
+
+### CI
+
+- 发版校验扩展为 tag/VERSION/package.json 三方一致
+
+### 文档
+
+- 新增「配置安装」分发改造设计（spec）
+- Spec 自审修正（更新/卸载目标写法、发版上线次序、版本同源、成功标准措辞）
+- 需求变更——移除侧边栏更新横幅与更新检查（spec/plan 同步）
+- Plan 补充 Task 4 触发时的路径替换约定
+- 修正 plan Task1 files 覆盖断言（路径归一化）
+- 记录配置安装实测结论并同步 spec/plan（需 no-op ./server 入口）
+- Plan README 段落去掉侧边栏更新提示表述
+- README 改为配置安装（安装/更新/卸载/迁移）
+- AGENTS.md 同步配置安装分发约定
+- 修正终审指出的 AGENTS/release/plan 过期陈述
+
+### 新功能
+
+- 新增根 package.json（仅 ./tui 入口）并将版本升至 2.0.0
+- 增加 no-op ./server 入口（配置安装可达性的必要条件）并同步守护测试
+- 分发改为配置安装（移除脚本安装与运行时更新检查）（破坏性变更）
+
+### 杂项
+
+- 更新 CHANGELOG 到 v1.0.1
+
+### 重构
+
+- 移除 install/uninstall 脚本（分发统一为配置安装）
+- 移除侧边栏更新横幅与更新检查模块（更新交由 opencode plugin update）
 ## [1.0.1] - 2026-09-10
 
 
