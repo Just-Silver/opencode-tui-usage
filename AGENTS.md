@@ -2,14 +2,21 @@
 - 全程中文沟通与中文 `git commit`
 
 # 项目
-- 单 TUI 插件仓库，非 monorepo，无 `package.json`/`README`/`opencode.json`，无构建/CI 配置（CI 仅 `.github/workflows/release.yml` 发版）
-- 唯一插件：`.opencode/plugins/opencode-tui-usage/`（目录型插件，`Plugin.define id:"opencode-tui-usage"`），入口 `tui.tsx`（TUI 入口，薄壳，import `@opencode/plugin/tui`）+ 同目录子模块 `{model,quota,shared,view,update}/*` 视为单插件，子模块仅被入口 `import`；MVVM 四层：`model/` 数据与纯函数（可单测）、`quota/` 查询服务（fetcher+凭据）、`shared/` 纯帮助函数、`view/` UI（Sidebar=ViewModel 编排）、`update/` 更新检查（版本常量+Release 对比）
-- 布局硬约束（opencode2 ≥ beta-18721 发现器）：插件必须是 `.opencode/plugins/`（或 `plugin/`）的**直接子目录**，目录内 `tui.tsx` = TUI 入口（`index.ts`/`server.ts` = server 入口）；**不可**再嵌套（旧 `plugins/tui/opencode-tui-usage.tsx` 形态在 19425 上不被发现、不加载）；直接子 `.tsx` 文件也不会被发现（只认 `.ts`/`.js`）。只有 `tui.tsx`、无 server 入口 → server 端直接忽略（规避 server 端 `context.ui` 为 undefined 的坑）
+- 单 TUI 插件仓库，非 monorepo；**分发为配置安装**：根 `package.json` 暴露 `exports["./server"]`（no-op）与 `exports["./tui"]` → `.opencode/plugins/opencode-tui-usage/{server,tui}.tsx`，不发布 npm registry（CI 仅 `.github/workflows/release.yml` 发版）
+- 唯一插件：`.opencode/plugins/opencode-tui-usage/`（目录型插件，`Plugin.define id:"opencode-tui-usage"`），入口 `tui.tsx`（TUI 入口，薄壳，import `@opencode/plugin/tui`）+ 同目录子模块 `{model,quota,shared,view,update}/*` 视为单插件，子模块仅被入口 `import`；MVVM 四层：`model/` 数据与纯函数（可单测）、`quota/` 查询服务（fetcher+凭据）、`shared/` 纯帮助函数、`view/` UI（Sidebar=ViewModel 编排）、`update/` 版本常量
+- 布局硬约束（opencode2 ≥ beta-18721 发现器）：插件必须是 `.opencode/plugins/`（或 `plugin/`）的**直接子目录**，目录内 `tui.tsx` = TUI 入口（`index.ts`/`server.ts` = server 入口）；**不可**再嵌套（旧 `plugins/tui/opencode-tui-usage.tsx` 形态在 19425 上不被发现、不加载）；直接子 `.tsx` 文件也不会被发现（只认 `.ts`/`.js`）。
+- 入口为 `tui.tsx`（TUI，import `@opencode/plugin/tui`）+ `server.ts`（**no-op** server 入口，import `@opencode/plugin`，**不得触碰 `context.ui`**）：实测纯 TUI-only 包会被 server 跳过、CLI 拿不到，配置安装失效，故必须有 server 入口
+
+# 分发安装
+- 唯一安装方式：`opencode.json(c)` 的 `"plugins": ["Just-Silver/opencode-tui-usage"]`（钉版本用 `github:Just-Silver/opencode-tui-usage#vX.Y.Z`）；opencode 启动时经 arborist 从 GitHub 按需安装到 global.cache
+- 更新 `opencode plugin update <目标>` / 卸载 `opencode plugin remove <目标>`（目标写法见探针结论）
+- 旧件 install.sh/install.ps1/uninstall.sh/uninstall.ps1 已删除，不再维护
 
 # 发版
 - 版本单一事实源：`.opencode/plugins/opencode-tui-usage/update/version.ts` 的 `VERSION`（SemVer）
+- 版本三方一致：tag == update/version.ts 的 VERSION == package.json.version（release.yml 校验）；VERSION 为运行时唯一事实源，package.json.version 为其镜像
+- 更新交由 opencode：`opencode plugin update <配置中的目标>`；插件自身不再做更新检查
 - 流程：改 `VERSION` → commit → `git tag v1.1.0` → `git push origin v1.1.0` → `.github/workflows/release.yml` 自动创建 Release（校验 tag 与 VERSION 一致，不一致即 fail 拦截）
-- 运行时更新提示：插件启动时 `fetch https://api.github.com/repos/Just-Silver/opencode-tui-usage/releases/latest` 对比本地 VERSION，落后则 `view/UpdateBanner.tsx` 黄色横幅提示重跑 `install.sh`；无 Release/网络失败/本地超前 → 静默不提示
 
 # 运行与验证
 - 本地 `Bun 1.3.14`，`TUI` 依赖 `bun:sqlite` 读 `~/.local/share/opencode/opencode.db`
