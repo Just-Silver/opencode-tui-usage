@@ -13,16 +13,18 @@ test("包名与插件 id 一致且为 ESM", () => {
   assert.equal(pkg.type, "module")
 })
 
-test("仅暴露 ./tui 入口（无 server/main）", () => {
-  assert.deepEqual(Object.keys(pkg.exports), ["./tui"])
+test("暴露 ./server 与 ./tui 两个入口（server 入口是配置安装可达的必要条件）", () => {
+  assert.deepEqual(Object.keys(pkg.exports), ["./server", "./tui"])
   assert.equal(pkg.main, undefined)
 })
 
-test("exports['./tui'] 指向真实存在的 TUI 入口", () => {
-  const rel = pkg.exports["./tui"]
-  assert.ok(typeof rel === "string" && rel.length > 0, "exports['./tui'] 必须是字符串")
-  assert.ok(rel.endsWith("tui.tsx"), `TUI 入口应为 tui.tsx，实际 ${rel}`)
-  assert.ok(existsSync(path.join(root, rel)), `exports 指向的文件不存在: ${rel}`)
+test("exports 两个入口都指向真实存在的文件", () => {
+  for (const rel of [pkg.exports["./server"], pkg.exports["./tui"]]) {
+    assert.ok(typeof rel === "string" && rel.length > 0, "入口必须是字符串")
+    assert.ok(existsSync(path.join(root, rel)), `入口文件不存在: ${rel}`)
+  }
+  assert.ok(pkg.exports["./tui"].endsWith("tui.tsx"), "TUI 入口应为 tui.tsx")
+  assert.ok(pkg.exports["./server"].endsWith("server.ts"), "server 入口应为 server.ts")
 })
 
 test("files 覆盖 exports 指向的入口（防点目录被剔除）", () => {

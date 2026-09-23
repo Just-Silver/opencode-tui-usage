@@ -4,6 +4,7 @@
   "type": "module",
   "files": [".opencode/plugins/opencode-tui-usage"],
   "exports": {
+    "./server": "./.opencode/plugins/opencode-tui-usage/server.ts",
     "./tui": "./.opencode/plugins/opencode-tui-usage/tui.tsx"
   },
   "dependencies": {
