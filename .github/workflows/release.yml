@@ -1,7 +1,7 @@
 name: Release
 
 # 手动打 tag 触发（GitHub 官方标准发布流程）：
-#   改 update/version.ts 的 VERSION → commit → git tag v1.1.0 → git push origin v1.1.0
+#   改 update/version.ts 的 VERSION（并同步 package.json 的 version）→ commit → git tag v2.0.0 → git push origin v2.0.0
 on:
   push:
     tags:
@@ -18,15 +18,21 @@ jobs:
         with:
           fetch-depth: 0 # git-cliff 需要完整历史（按 tag 分组）
 
-      - name: 校验 tag 与 VERSION 一致
+      - name: 校验 tag / VERSION / package.json 一致
         id: version
         run: |
           TAG="${GITHUB_REF_NAME#v}"
           IN_CODE="$(grep -oP 'VERSION = "\K[0-9]+\.[0-9]+\.[0-9]+' .opencode/plugins/opencode-tui-usage/update/version.ts)"
+          IN_PKG="$(grep -oP '"version": "\K[0-9]+\.[0-9]+\.[0-9]+' package.json)"
           echo "tag=$TAG"
           echo "code=$IN_CODE"
+          echo "pkg=$IN_PKG"
           if [ "$TAG" != "$IN_CODE" ]; then
             echo "::error::tag ($TAG) 与 update/version.ts VERSION ($IN_CODE) 不一致"
+            exit 1
+          fi
+          if [ "$TAG" != "$IN_PKG" ]; then
+            echo "::error::tag ($TAG) 与 package.json version ($IN_PKG) 不一致"
             exit 1
           fi
           echo "version=$TAG" >> "$GITHUB_OUTPUT"
