@@ -264,6 +264,8 @@ Expected: 探针日志出现（且无异常堆栈）。`$env:TUI_USAGE_PROBE` �
 
 **触发条件：** 仅当 Task 3 Step 4 找不到 `.opencode` 下的入口（点目录被 pacote 剔除）时执行。若 Task 3 已通过，跳过本任务。
 
+**路径替换约定：** 若本任务触发，后续所有任务（T5–T8）中出现的 `.opencode/plugins/opencode-tui-usage` 一律替换为 `plugin/opencode-tui-usage`（`release.yml` 的 grep 路径、README/AGENTS 文案、esbuild 命令同）。
+
 **Files:**
 - Rename: `.opencode/plugins/opencode-tui-usage/` → `plugin/opencode-tui-usage/`
 - Modify: `package.json`（`files` 与 `exports` 路径）
