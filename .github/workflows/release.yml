@@ -1,7 +1,7 @@
 name: Release
 
 # 手动打 tag 触发（GitHub 官方标准发布流程）：
-#   改 update/version.ts 的 VERSION → commit → git tag v1.1.0 → git push origin v1.1.0
+#   改 update/version.ts 的 VERSION（并同步 package.json 的 version）→ commit → git tag v2.0.0 → git push origin v2.0.0
 on:
   push:
     tags:
