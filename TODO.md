@@ -2,6 +2,13 @@
 
 ## 跟踪中
 
+- [ ] **TUI 插件「配置安装」待上游修复后评估恢复**（opencode 侧问题，**非本插件**）
+  - 现象：经 `opencode.json(c)` 的 `plugins` 安装本插件后，侧边栏**首次为空、切一次会话才显示**（之后更新也不刷新）
+  - 根因：插件落进 `node_modules`，npm 自动装的 peer（`solid-js`/`@opentui/*`）形成**双 Solid 运行时**，宿主 store 更新无法通知插件 memo
+  - 上游：#48883（已关闭为重复）、#33884、#39986（均 OPEN）
+  - 现状：已回退脚本安装（发现式）；完整方法学见 `docs/config-install.md`
+  - 动作：上游修复后，按 `docs/config-install.md` 第 2 节恢复根 `package.json` + no-op `server.ts` 并实测
+
 - [ ] **Windows 上「未钉版本的 git 插件」会让 opencode 弹命令窗**（opencode 侧问题，**非本插件**）
   - 现象：`plugins` 里写**未钉版本**的 git 源（如 `Just-Silver/opencode-tui-usage`），opencode 共享服务 cold start 做插件更新检查时 spawn `git ls-remote` **未加 `CREATE_NO_WINDOW`** → Windows 弹出可见控制台窗口。删 `~/.cache/opencode/npm/...` 后重启（触发强制重装）会弹更多次（实测 3 次）。
   - 根因/上游 issue：<https://github.com/anomalyco/opencode/issues/50868>（OPEN；`server: unpinned plugin update check flashes visible git console window on Windows`）

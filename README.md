@@ -4,41 +4,34 @@ TUI 侧边栏：上下文 / 缓存 / 额度。
 
 ## 安装
 
-在 `opencode.json(c)` 的 `plugins` 中加入一行，opencode 启动时会自动从 GitHub 安装：
+Linux / macOS（bash）：
 
-```jsonc
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugins": ["Just-Silver/opencode-tui-usage"]
-}
+```bash
+curl -fsSL https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main/install.sh | bash
 ```
 
-钉版本（可复现，推荐）：
+Windows（PowerShell 7+）：
 
-```jsonc
-{
-  "plugins": ["github:Just-Silver/opencode-tui-usage#v2.0.1"]
-}
+```powershell
+irm https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main/install.ps1 | iex
 ```
 
-> 未钉版本会跟随默认分支；钉 tag 后更新由 `opencode plugin update` 负责。
+脚本会把插件整目录安装到全局插件目录（Linux/macOS 为 `~/.config/opencode/plugins/opencode-tui-usage/`，Windows 为 `%USERPROFILE%\.config\opencode\plugins\opencode-tui-usage\`），重启 opencode 生效。
 
 ## 更新
 
-```sh
-opencode plugin update <配置中的目标>
-```
-
-或直接重启 opencode。
+重新运行一次上面的安装脚本即可（脚本会以最新版原子替换旧目录），随后重启 opencode。
 
 ## 卸载
 
-```sh
-opencode plugin remove <配置中的目标>
+Linux / macOS（bash）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main/uninstall.sh | bash
 ```
 
-或从 `plugins` 中删掉该行。
+Windows（PowerShell 7+）：
 
-## 从旧版脚本迁移
-
-曾用 `install.sh` / `install.ps1` 安装的用户：删除 `~/.config/opencode/plugins/opencode-tui-usage/`，按上面的「安装」写入配置行，重启 opencode。
+```powershell
+irm https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main/uninstall.ps1 | iex
+```

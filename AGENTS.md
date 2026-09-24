@@ -2,43 +2,38 @@
 - 全程中文沟通与中文 `git commit`
 
 # 项目
-- 单 TUI 插件仓库，非 monorepo；**分发为配置安装**：根 `package.json` 暴露 `exports["./server"]`（no-op）与 `exports["./tui"]` → `.opencode/plugins/opencode-tui-usage/{server,tui}.tsx`，不发布 npm registry（CI 仅 `.github/workflows/release.yml` 发版）
+- 单 TUI 插件仓库，非 monorepo；**分发为脚本安装（发现式）**：`install.sh`/`install.ps1` 把插件整目录装到 `~/.config/opencode/plugins/opencode-tui-usage/`（`node_modules` 之外），不发布 npm registry（CI 仅 `.github/workflows/release.yml` 发版）
+- 根 `package.json` 与 no-op `server.ts` 已随「配置安装」一并移除（TUI 插件配置安装当前不可用，方法学见 `docs/config-install.md`）；插件仅含 `tui.tsx` 入口
 - 唯一插件：`.opencode/plugins/opencode-tui-usage/`（目录型插件，`Plugin.define id:"opencode-tui-usage"`），入口 `tui.tsx`（TUI 入口，薄壳，import `@opencode/plugin/tui`）+ 同目录子模块 `{model,quota,shared,view,update}/*` 视为单插件，子模块仅被入口 `import`；MVVM 四层：`model/` 数据与纯函数（可单测）、`quota/` 查询服务（fetcher+凭据）、`shared/` 纯帮助函数、`view/` UI（Sidebar=ViewModel 编排）、`update/` 版本常量
 - 布局硬约束（opencode2 ≥ beta-18721 发现器）：插件必须是 `.opencode/plugins/`（或 `plugin/`）的**直接子目录**，目录内 `tui.tsx` = TUI 入口（`index.ts`/`server.ts` = server 入口）；**不可**再嵌套（旧 `plugins/tui/opencode-tui-usage.tsx` 形态在 19425 上不被发现、不加载）；直接子 `.tsx` 文件也不会被发现（只认 `.ts`/`.js`）。
-- 入口为 `tui.tsx`（TUI，import `@opencode/plugin/tui`）+ `server.ts`（**no-op** server 入口，import `@opencode/plugin`，**不得触碰 `context.ui`**）：实测纯 TUI-only 包会被 server 跳过、CLI 拿不到，配置安装失效，故必须有 server 入口
+- 入口仅 `tui.tsx`（TUI，import `@opencode/plugin/tui`）：**发现式/脚本安装只需 TUI 入口**。`server.ts`（no-op server 入口，import `@opencode/plugin`，不得触碰 `context.ui`）**仅配置安装需要**（纯 TUI-only 包会被 server 跳过 → CLI 拿不到 → `./tui` 不加载），已随配置安装移除，详见 `docs/config-install.md`
 
 # 分发安装
-- 唯一安装方式：`opencode.json(c)` 的 `"plugins": ["Just-Silver/opencode-tui-usage"]`（钉版本用 `github:Just-Silver/opencode-tui-usage#vX.Y.Z`）；opencode 启动时经 arborist 从 GitHub 按需安装到 global.cache
-- 更新 `opencode plugin update <目标>` / 卸载 `opencode plugin remove <目标>`；**目标是配置里的那串 spec 原样**（如 `Just-Silver/opencode-tui-usage` 或 `github:Just-Silver/opencode-tui-usage#vX.Y.Z`），非包名、非路径（依 `plugin update --help` 的 "configured package target"）
-- 旧件 install.sh/install.ps1/uninstall.sh/uninstall.ps1 已删除，不再维护
+- **面向用户：脚本安装（发现式）**。`install.sh` / `install.ps1` 从 GitHub（git clone 失败回退 archive tar.gz）取插件，整目录**原子**装到 `$XDG_CONFIG_HOME/opencode/plugins/opencode-tui-usage/`（默认 `~/.config/opencode/plugins/...`；Windows 取 `$HOME/.config`）；`uninstall.sh` / `uninstall.ps1` 删该目录并清理 ≤18707 旧布局（`plugins/tui/*`）残留。安装后重启 opencode 生效；更新 = 重跑安装脚本
+- 脚本落在 `plugins/` **直接子目录**且在 `node_modules` 之外 → 走 OpenTUI 运行时桥接，Solid 响应式正常。**这是 TUI 插件当前唯一可用的安装方式**
+- **配置安装（`opencode.json(c)` 的 `plugins`）当前不用于本插件**：会把插件装进 `node_modules`，npm 自动安装的 peer 依赖（`solid-js`/`@opentui/*`）导致**双 Solid 运行时** → 只画首帧、不再刷新（现象：侧边栏首次为空、切一次会话才显示）。上游未修复（#33884/#39986 OPEN）；非 TUI（server）插件不受影响。完整方法学/验证判据整理在 `docs/config-install.md`
 
 # 发版
 - 版本单一事实源：`.opencode/plugins/opencode-tui-usage/update/version.ts` 的 `VERSION`（SemVer）
-- 版本三方一致：tag == update/version.ts 的 VERSION == package.json.version（release.yml 校验）；VERSION 为运行时唯一事实源，package.json.version 为其镜像
-- 更新交由 opencode：`opencode plugin update <配置中的目标>`；插件自身不再做更新检查
-- 流程：改 `VERSION`（并同步 `package.json` 的 `version`）→ commit → `git tag vX.Y.Z` → `git push origin vX.Y.Z` → `.github/workflows/release.yml` 自动创建 Release（校验 tag == VERSION == package.json.version，不一致即 fail 拦截）
+- tag == VERSION（release.yml 校验，不一致即 fail 拦截）；插件自身不做更新检查，用户更新 = 重跑安装脚本
+- 流程：改 `VERSION` → commit → `git tag vX.Y.Z` → `git push origin vX.Y.Z` → `.github/workflows/release.yml` 自动创建 Release
 
 # 运行与验证
 - 本地 `Bun 1.3.14`，`TUI` 依赖 `bun:sqlite` 读 `~/.local/share/opencode/opencode.db`
 - 热重载：`B/~BUN/root/chunk-*.js?mtime` 内存打包，opencode2 动态加载，新增/重命名/删除/同名覆盖均无需重启
 - 日志：TUI 插件**无 `app.log`**（client 为 HTTP 客户端；旧文档 `ctx.client.app.log` 会直接崩溃，已踩坑）。`console` 被 TUI 全屏覆盖**不可见**（不进 opencode.log）。诊断走文件日志 `~/.local/share/opencode/log/tui-usage.log`：**默认禁用零开销**，排查时 `$env:TUI_USAGE_PROBE="1"; opencode` 启用（TUI 插件跑在客户端进程），文件超 1MB 自动重建（官方 opencode.log 无限 append 无任何清理，我们自管）；失败统一 `60s` 限流不重试
-- 校验：单元测试 `node --test tests/*.test.ts`（node ≥23.6 原生 TS strip，零依赖；8 个文件：key/quota/model/quota-store/shared/command-code/discovery/package，全部须过）；改后打包语法检查用 esbuild：`npx --yes esbuild .opencode/plugins/opencode-tui-usage/tui.tsx --bundle --platform=node --format=esm --jsx=automatic --jsx-import-source=@opentui/solid --external:@opencode/plugin/tui --external:@opentui/solid --external:solid-js --outfile=$env:TEMP\opencode\tui-bundle-check.js`（`Done in` 即通过）；`opencode` 启动侧边栏无 `sidebar.content` 崩溃即正常
+- 校验：单元测试 `node --test tests/*.test.ts`（node ≥23.6 原生 TS strip，零依赖；7 个文件：key/quota/model/quota-store/shared/command-code/discovery，全部须过）；改后打包语法检查用 esbuild：`npx --yes esbuild .opencode/plugins/opencode-tui-usage/tui.tsx --bundle --platform=node --format=esm --jsx=automatic --jsx-import-source=@opentui/solid --external:@opencode/plugin/tui --external:@opentui/solid --external:solid-js --outfile=$env:TEMP\opencode\tui-bundle-check.js`（`Done in` 即通过）；`opencode` 启动侧边栏无 `sidebar.content` 崩溃即正常
 - 官方源码速查：v2 仓库 = `sst/opencode`（TS monorepo，**`opencode-ai/opencode` 已归档勿用**）；日志实现 `packages/core/src/observability/logging.ts`（`Logger.toFile(..., { flag: "a" })`，**opencode.log 无轮转/截断/清理**）；查代码用 sparse clone 绕过 GitHub code search 对超大仓库的截断：`git clone --depth 1 --filter=blob:none --sparse <url> && git -C <dir> sparse-checkout set packages/core packages/tui`
 
 # opencode2 版本与插件加载
-- **当前推荐版本 `0.0.0-beta-19425`（2026-09-10）已实测可加载本插件**（本文档即修复于 19425）；**`2.0.15`（2026-09-24）亦实测可加载，且配置安装生效（前提见下条）**
+- **当前推荐版本 `0.0.0-beta-19425`（2026-09-10）已实测可加载本插件**（本文档即修复于 19425）；**`2.0.15`（2026-09-24）亦实测可加载**（发现式；配置安装曾实测生效，但因 TUI 双 Solid 缺陷已回退，见「分发安装」）
 - 19425 双层变化（相对 18707，实测）：
   1. **包名改名**：运行时注入的插件模块由 `@opencode-ai/plugin/tui` 改为 `@opencode/plugin/tui`（**无兼容重映射**，旧名 import 直接 ResolveMessage 失败）；npm 主包同时 `@opencode-ai/cli` → `@opencode/cli`
   2. **目录型插件布局**：发现器只扫 `plugins/`（与 `plugin/`）**直接子项**；直接子 `.ts`/`.js` = 文件插件；直接子目录 = 目录插件，入口经解析器取 `tui.tsx`（TUI）/`index.*`、`server.*`（server）。旧的嵌套 `plugins/tui/opencode-tui-usage.tsx` 形态在 19425 上**既不被服务端也不被 TUI 加载**（探针实测空日志）。直接子 `.tsx` 文件（非目录）也不被发现（文件只认 `.ts`/`.js`，实测）
 - **判据**：`opencode2 plugin list` 列出候选（目录型只看 `tui` 入口存在与否）；真实加载看 `opencode2 api --standalone --print-logs GET /api/plugin` 的 stderr `msg="loading plugin"` + `WARN failed to load plugin ... cause`；TUI 侧看探针文件 `~/.local/share/opencode/log/tui-usage.log`（`$env:TUI_USAGE_PROBE=1`）
 - **注意**：`plugin list` 读后台 **service 缓存**，改磁盘后需 `opencode2 service restart`（或等 `plugin update`）才刷新；`api --standalone` 起私有子服务可即时看真值
 - **历史（≤18707，2026-09-01 三层根因，已过时仅供参考）**：18721/18743 曾出现「发现器只认根层 direct `.ts`/`.js` + 依赖外置化（server 端 import `@opencode-ai/plugin` 走磁盘 `~/.config/opencode/node_modules/`，官方从不安装）+ 加载器 `?mtime=` file:// URL bug」；我方实证提交 #46408、#42051 同族
-- **配置安装（`opencode.json(c)` 的 `plugins`）与 TUI 加载的坑（2026-09-24，opencode `2.0.15` 实测；开发新插件时必读）**：
-  1. **纯 TUI-only 包不会被加载**：包只暴露 `exports["./tui"]` 时，在 `plugins` 里配置它 → server 端因无 server 入口而**跳过**该包 → CLI 拿不到它 → `./tui` 永不加载，且**无明显报错**（`plugin list`/`/api/plugin` 也看不到）。**必须同时暴露 no-op `exports["./server"]`**（server 入口**不得触碰 `context.ui`**）才生效。发现式（`.opencode/plugins/<dir>/tui.tsx`）不受此影响，一直可用
-  2. **`plugin list` / `GET /api/plugin` 不枚举「配置里的插件」**：用合法本地控制组 `./extra` 验证过——配置项正确也不出现在列表里；故「没列出」是**无效信号**，不能据此判加载失败
-  3. **探针方法学（否则易得假阴性/假阳性）**：无头 `Start-Process opencode.exe --standalone -WindowStyle Hidden` **不可靠**（可能根本没跑到插件初始化）——必须重定向 stdout 确认渲染出主界面，否则阴性结论无意义；同名 spec（含 ref）的 git 安装会命中 `~/.cache/opencode/npm/git-*` **旧副本**，代码改了也不重拉，需清缓存或换 ref；把全局插件改名成 `plugins/opencode-tui-usage.bak` **仍会被发现器当插件加载**（伪造出成功日志），必须移出 `plugins/` 目录才是干净实验
-  4. **配置键**：`"plugin"`（单数，V1）会被迁移为 `"plugins"`，两种皆可；`tui.json(c)` 的 `plugin` 字段在 `2.0.15` 上**未生效**（疑似更高版本才支持），CLI 侧插件来源实际仍以**发现式**为准
-  5. **判据以实测为准**：`sst/opencode` 的 `dev` 分支源码可能领先于已发布版本（本次推理与 `2.0.15` 实测不符），两者冲突时以本机实测为准；验证配置安装的可靠判据 = 清缓存 + 全局插件移出 + 临时 git 工程 + 探针日志 `~/.local/share/opencode/log/tui-usage.log`
+- **配置安装（`opencode.json(c)` 的 `plugins`）：完整方法学、包形状、验证判据与「TUI 插件双 Solid 陷阱」已整理到 `docs/config-install.md`（面向非 TUI 插件复用；2026-09-24 定论）**。一句话：TUI 插件经配置安装会落进 `node_modules`，npm 自动安装的 peer 依赖（`solid-js`/`@opentui/*`）形成**双 Solid 运行时** → 只画首帧不刷新（现象：侧边栏首次为空、**切一次会话才显示**）→ 本插件回退脚本安装；上游 #48883（关闭为重复）/#33884/#39986（均 OPEN），非 TUI（server）插件不受影响
 
 # 关键逻辑
 - `sidebar.content` 的 `render({sessionID})` 仅跟当前展示会话，空会话 `providerID` 返回 `undefined` 不查额度、有缓存 `Map<providerID,QuotaData>` 切回瞬时显示，子代理独立 `sessionID` 不进侧边栏不触发

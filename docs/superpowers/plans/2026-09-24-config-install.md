@@ -1,5 +1,7 @@
 # opencode-tui-usage「配置安装」分发改造 Implementation Plan
 
+> ⚠️ **已废止（2026-09-24 回退）**：配置安装对 TUI 插件存在双 Solid 缺陷（只画首帧、不再刷新：侧边栏首次为空、切一次会话才显示），已回退脚本安装；方法学保留在 `docs/config-install.md`。本 plan 仅作历史记录。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 让本插件只通过 `opencode.json(c)` 的 `"plugins": ["Just-Silver/opencode-tui-usage"]` 一行即可安装/更新/卸载，并删除其余全部安装通道。
