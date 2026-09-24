@@ -2,12 +2,12 @@
 
 ## 跟踪中
 
-- [ ] **TUI 插件「配置安装」待上游修复后评估恢复**（opencode 侧问题，**非本插件**）
+- [x] **TUI 插件「配置安装」：本项目不采用，知识留存**（2026-09-24 决策）
   - 现象：经 `opencode.json(c)` 的 `plugins` 安装本插件后，侧边栏**首次为空、切一次会话才显示**（之后更新也不刷新）
-  - 根因：插件落进 `node_modules`，npm 自动装的 peer（`solid-js`/`@opentui/*`）形成**双 Solid 运行时**，宿主 store 更新无法通知插件 memo
+  - 根因（源码级）：插件落进 `node_modules`；opencode 的 **Solid 转换器 filter 明确排除 `node_modules`**，而**运行时重写器只重写「源码文本可见」的 import** —— JSX 的 `@opentui/solid/jsx-runtime` 是 Bun 转译当刻注入的，prescan 看不见 → 命中插件自带的第二份 Solid
   - 上游：#48883（已关闭为重复）、#33884、#39986（均 OPEN）
-  - 现状：已回退脚本安装（发现式）；完整方法学见 `docs/config-install.md`
-  - 动作：上游修复后，按 `docs/config-install.md` 第 2 节恢复根 `package.json` + no-op `server.ts` 并实测
+  - 结论：Solid JSX 插件要配置安装须**放弃 Solid**（方案 B，已见活案例 opencode-gpt-live）或引入预编译（方案 A），代价与收益不匹配 → 本项目继续**脚本安装（发现式）**
+  - 完整方法学（方案 A/B/D 对比、npm 包名 vs git 源的更新/弹窗差异）见 `docs/config-install.md` 第 5 节
 
 - [ ] **Windows 上「未钉版本的 git 插件」会让 opencode 弹命令窗**（opencode 侧问题，**非本插件**）
   - 现象：`plugins` 里写**未钉版本**的 git 源（如 `Just-Silver/opencode-tui-usage`），opencode 共享服务 cold start 做插件更新检查时 spawn `git ls-remote` **未加 `CREATE_NO_WINDOW`** → Windows 弹出可见控制台窗口。删 `~/.cache/opencode/npm/...` 后重启（触发强制重装）会弹更多次（实测 3 次）。
