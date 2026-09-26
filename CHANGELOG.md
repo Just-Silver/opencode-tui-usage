@@ -3,6 +3,26 @@
 本仓库所有重要变更记录于此，格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [2.1.0] - 2026-09-26
+
+
+### 回滚
+
+- 分发回退为脚本安装（TUI 配置安装存在双 Solid 缺陷）
+
+### 文档
+
+- AGENTS 补充配置安装与 TUI 加载的坑（2.0.15 实测，供后续插件开发参考）
+- 新增 TODO 跟踪 opencode 未钉版本插件弹窗问题（上游 #50868，非本插件）
+- 记录 TUI 插件配置安装的源码级根因与方案 B（不使用 Solid）
+
+### 新功能
+
+- 恢复启动时更新检查（磁盘缓存节流）并将插件数据移至自身目录
+
+### 杂项
+
+- 更新 CHANGELOG 到 v2.0.1
 ## [2.0.1] - 2026-09-23
 
 
