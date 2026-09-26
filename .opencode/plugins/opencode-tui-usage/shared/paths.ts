@@ -21,3 +21,16 @@ export function localAppDataDir(): string {
 export function pluginDataDir(): string {
   return join(localAppDataDir(), "opencode-tui-usage")
 }
+
+// opencode 的「全局插件目录」（与安装脚本 install.sh / install.ps1 一致）：
+//   $XDG_CONFIG_HOME/opencode/plugins（默认 ~/.config/opencode/plugins；Windows 取 $HOME/.config）
+// ⚠️ 这是 opencode 发现插件的位置，用于一键更新时的替换目标；
+//    与 pluginDataDir()（本插件自己的缓存/日志数据目录）是两回事，勿混。
+export function globalPluginsDir(): string {
+  const base = process.env.XDG_CONFIG_HOME?.trim()
+  return join(base ? base : join(homedir(), ".config"), "opencode", "plugins")
+}
+
+export function globalPluginDir(): string {
+  return join(globalPluginsDir(), "opencode-tui-usage")
+}

@@ -1,57 +1,63 @@
-// ─── update/apply.ts 执行更新单元测试（离线，不真的跑安装脚本） ───
+// ─── update/apply.ts 执行更新单元测试（离线，不真的下载/解压） ───
 import { test } from "node:test"
 import assert from "node:assert/strict"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs"
+import { tmpdir } from "os"
+import { join } from "path"
 import {
   applyUpdate,
-  buildInstallCommands,
+  archiveUrl,
+  buildTarArgs,
   summarizeOutput,
-  INSTALL_PS1_URL,
-  INSTALL_SH_URL,
-  UPDATE_RUN_TIMEOUT_MS,
-  type UpdateCommand,
+  UPDATE_PLUGIN_SUBPATH,
   type UpdateExec,
   type UpdateRunResult,
 } from "../.opencode/plugins/opencode-tui-usage/update/apply.ts"
-
-// 可记录调用的假执行器：按序返回给定结果
-function fakeExec(results: UpdateRunResult[]): { exec: UpdateExec; calls: { command: UpdateCommand; timeoutMs: number }[] } {
-  const calls: { command: UpdateCommand; timeoutMs: number }[] = []
-  let i = 0
-  const exec: UpdateExec = async (command, timeoutMs) => {
-    calls.push({ command, timeoutMs })
-    const result = results[Math.min(i, results.length - 1)]
-    i++
-    return result
-  }
-  return { exec, calls }
-}
+import { globalPluginDir } from "../.opencode/plugins/opencode-tui-usage/shared/paths.ts"
 
 const ok = (): UpdateRunResult => ({ code: 0, stdout: "", stderr: "" })
 
-// ─── buildInstallCommands（平台判断） ───
-test("buildInstallCommands：win32 优先 pwsh，回退 powershell", () => {
-  const cmds = buildInstallCommands("win32")
-  assert.equal(cmds.length, 2)
-  assert.equal(cmds[0].file, "pwsh")
-  assert.equal(cmds[1].file, "powershell")
-  assert.deepEqual(cmds[0].args, cmds[1].args)
-  assert.ok(cmds[0].args.includes(`irm ${INSTALL_PS1_URL} | iex`))
-})
-
-test("buildInstallCommands：非 win32 用 bash + curl install.sh", () => {
-  for (const platform of ["darwin", "linux"]) {
-    const cmds = buildInstallCommands(platform)
-    assert.equal(cmds.length, 1)
-    assert.equal(cmds[0].file, "bash")
-    assert.deepEqual(cmds[0].args, ["-c", `curl -fsSL ${INSTALL_SH_URL} | bash`])
+// 假 tar：按 -C <dest> 造出「解压后」的目录结构
+function fakeExtract(content: string): UpdateExec {
+  return async (_file, args) => {
+    const dest = args[args.indexOf("-C") + 1]
+    const dir = join(dest, UPDATE_PLUGIN_SUBPATH)
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, "tui.tsx"), content)
+    return ok()
   }
+}
+
+// 造一个「已安装的」插件目录
+function makePluginDir(root: string, content: string): string {
+  const dir = join(root, "plugins", "opencode-tui-usage")
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, "tui.tsx"), content)
+  return dir
+}
+
+// ─── 纯函数 ───
+test("archiveUrl：有版本号走 tag 归档，无则走 main", () => {
+  assert.equal(
+    archiveUrl("2.1.0"),
+    "https://github.com/Just-Silver/opencode-tui-usage/archive/refs/tags/v2.1.0.tar.gz",
+  )
+  assert.ok(archiveUrl().endsWith("/archive/main.tar.gz"), archiveUrl())
 })
 
-// ─── summarizeOutput ───
+test("buildTarArgs：-xzf + -C + --strip-components=1", () => {
+  assert.deepEqual(buildTarArgs("/tmp/a.tar.gz", "/tmp/out"), [
+    "-xzf",
+    "/tmp/a.tar.gz",
+    "-C",
+    "/tmp/out",
+    "--strip-components=1",
+  ])
+})
+
 test("summarizeOutput：优先 stderr，取末尾若干行", () => {
   const stderr = Array.from({ length: 20 }, (_, i) => `err${i + 1}`).join("\n")
-  const out = summarizeOutput("stdout", stderr, 1, 3)
-  assert.equal(out, "err18\nerr19\nerr20")
+  assert.equal(summarizeOutput("stdout", stderr, 1, 3), "err18\nerr19\nerr20")
 })
 
 test("summarizeOutput：stderr 为空用 stdout；都空用退出码", () => {
@@ -63,42 +69,109 @@ test("summarizeOutput：归一化 CRLF 并丢弃空行", () => {
   assert.equal(summarizeOutput("", "a\r\n\r\nb\r\n", 1), "a\nb")
 })
 
+test("globalPluginDir：落在 $XDG_CONFIG_HOME/opencode/plugins/opencode-tui-usage", () => {
+  const p = globalPluginDir()
+  assert.ok(p.endsWith(join("opencode", "plugins", "opencode-tui-usage")), p)
+})
+
 // ─── applyUpdate 编排 ───
-test("applyUpdate：单命令成功 → ok，且只调用一次", async () => {
-  const { exec, calls } = fakeExec([ok()])
-  const result = await applyUpdate({ platform: "linux", exec })
-  assert.deepEqual(result, { ok: true })
-  assert.equal(calls.length, 1)
-  assert.equal(calls[0].command.file, "bash")
-  assert.equal(calls[0].timeoutMs, UPDATE_RUN_TIMEOUT_MS)
+test("applyUpdate：成功 → 下载 tag 归档、解压、原子替换并清理临时目录", async () => {
+  const root = mkdtempSync(join(tmpdir(), "otu-root-"))
+  const work = mkdtempSync(join(tmpdir(), "otu-work-"))
+  const pluginDir = makePluginDir(root, "old")
+  let fetched = ""
+  try {
+    const result = await applyUpdate({
+      version: "9.9.9",
+      pluginDir,
+      workDir: work,
+      fetchArchive: async (url) => {
+        fetched = url
+        return new Uint8Array([1, 2, 3])
+      },
+      exec: fakeExtract("new"),
+    })
+    assert.deepEqual(result, { ok: true })
+    assert.ok(fetched.endsWith("/archive/refs/tags/v9.9.9.tar.gz"), fetched)
+    assert.equal(readFileSync(join(pluginDir, "tui.tsx"), "utf8"), "new")
+    assert.equal(existsSync(work), false) // 临时目录已清理
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(work, { recursive: true, force: true })
+  }
 })
 
-test("applyUpdate：win32 pwsh 缺失（ENOENT）→ 回退 powershell 成功", async () => {
-  const { exec, calls } = fakeExec([{ code: -1, stdout: "", stderr: "", spawnError: "ENOENT" }, ok()])
-  const result = await applyUpdate({ platform: "win32", exec })
-  assert.deepEqual(result, { ok: true })
-  assert.equal(calls.length, 2)
-  assert.equal(calls[0].command.file, "pwsh")
-  assert.equal(calls[1].command.file, "powershell")
+test("applyUpdate：下载失败 → 失败且目标目录不动", async () => {
+  const root = mkdtempSync(join(tmpdir(), "otu-root-"))
+  const work = mkdtempSync(join(tmpdir(), "otu-work-"))
+  const pluginDir = makePluginDir(root, "old")
+  try {
+    const result = await applyUpdate({ version: "9.9.9", pluginDir, workDir: work, fetchArchive: async () => undefined })
+    assert.equal(result.ok, false)
+    if (!result.ok) assert.ok(result.message.includes("下载失败"))
+    assert.equal(readFileSync(join(pluginDir, "tui.tsx"), "utf8"), "old")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(work, { recursive: true, force: true })
+  }
 })
 
-test("applyUpdate：非零退出 → 失败并带出输出尾部", async () => {
-  const { exec } = fakeExec([{ code: 1, stdout: "", stderr: "boom\nfatal: not a git repository" }])
-  const result = await applyUpdate({ platform: "linux", exec })
-  assert.equal(result.ok, false)
-  if (!result.ok) assert.ok(result.message.includes("fatal: not a git repository"))
+test("applyUpdate：tar 缺失（ENOENT）→ 失败提示", async () => {
+  const root = mkdtempSync(join(tmpdir(), "otu-root-"))
+  const work = mkdtempSync(join(tmpdir(), "otu-work-"))
+  const pluginDir = makePluginDir(root, "old")
+  try {
+    const result = await applyUpdate({
+      version: "9.9.9",
+      pluginDir,
+      workDir: work,
+      fetchArchive: async () => new Uint8Array([1]),
+      exec: async () => ({ code: -1, stdout: "", stderr: "", spawnError: "ENOENT" }),
+    })
+    assert.equal(result.ok, false)
+    if (!result.ok) assert.ok(result.message.includes("未找到命令：tar"))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(work, { recursive: true, force: true })
+  }
 })
 
-test("applyUpdate：超时 → 失败并提示超时", async () => {
-  const { exec } = fakeExec([{ code: -1, stdout: "", stderr: "", spawnError: "TIMEOUT" }])
-  const result = await applyUpdate({ platform: "linux", exec, timeoutMs: 5_000 })
-  assert.equal(result.ok, false)
-  if (!result.ok) assert.ok(result.message.includes("超时"))
+test("applyUpdate：tar 非零退出 → 失败并带出 stderr", async () => {
+  const root = mkdtempSync(join(tmpdir(), "otu-root-"))
+  const work = mkdtempSync(join(tmpdir(), "otu-work-"))
+  const pluginDir = makePluginDir(root, "old")
+  try {
+    const result = await applyUpdate({
+      version: "9.9.9",
+      pluginDir,
+      workDir: work,
+      fetchArchive: async () => new Uint8Array([1]),
+      exec: async () => ({ code: 1, stdout: "", stderr: "tar: Error is not recoverable" }),
+    })
+    assert.equal(result.ok, false)
+    if (!result.ok) assert.ok(result.message.includes("tar: Error is not recoverable"))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(work, { recursive: true, force: true })
+  }
 })
 
-test("applyUpdate：所有候选命令都缺失 → 失败并说明", async () => {
-  const { exec } = fakeExec([{ code: -1, stdout: "", stderr: "", spawnError: "ENOENT" }])
-  const result = await applyUpdate({ platform: "win32", exec })
-  assert.equal(result.ok, false)
-  if (!result.ok) assert.ok(result.message.includes("未找到命令"))
+test("applyUpdate：归档缺 tui.tsx → 失败提示", async () => {
+  const root = mkdtempSync(join(tmpdir(), "otu-root-"))
+  const work = mkdtempSync(join(tmpdir(), "otu-work-"))
+  const pluginDir = makePluginDir(root, "old")
+  try {
+    const result = await applyUpdate({
+      version: "9.9.9",
+      pluginDir,
+      workDir: work,
+      fetchArchive: async () => new Uint8Array([1]),
+      exec: async () => ok(), // 解压成功但没造出 tui.tsx
+    })
+    assert.equal(result.ok, false)
+    if (!result.ok) assert.ok(result.message.includes("tui.tsx"))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(work, { recursive: true, force: true })
+  }
 })

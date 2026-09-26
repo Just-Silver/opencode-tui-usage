@@ -35,7 +35,7 @@ export function UpdateDialog(props: { version: string; onUpdated?: () => void })
   // 执行更新：成功后清缓存（横幅不再出现）并回调 onUpdated
   const run = async () => {
     setPhase("updating")
-    const result = await applyUpdate()
+    const result = await applyUpdate({ version: props.version })
     if (result.ok) {
       markUpdated()
       setPhase("done")
