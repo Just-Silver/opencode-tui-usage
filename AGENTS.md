@@ -4,7 +4,7 @@
 # 项目
 - 单 TUI 插件仓库，非 monorepo；**分发为脚本安装（发现式）**：`install.sh`/`install.ps1` 把插件整目录装到 `~/.config/opencode/plugins/opencode-tui-usage/`（`node_modules` 之外），不发布 npm registry（CI 仅 `.github/workflows/release.yml` 发版）
 - 根 `package.json` 与 no-op `server.ts` 已随「配置安装」一并移除（TUI 插件配置安装当前不可用，方法学见 `docs/config-install.md`）；插件仅含 `tui.tsx` 入口
-- 唯一插件：`.opencode/plugins/opencode-tui-usage/`（目录型插件，`Plugin.define id:"opencode-tui-usage"`），入口 `tui.tsx`（TUI 入口，薄壳，import `@opencode/plugin/tui`）+ 同目录子模块 `{model,quota,shared,view,update}/*` 视为单插件，子模块仅被入口 `import`；MVVM 四层：`model/` 数据与纯函数（可单测）、`quota/` 查询服务（fetcher+凭据）、`shared/` 纯帮助函数、`view/` UI（Sidebar=ViewModel 编排）、`update/` 版本常量
+- 唯一插件：`.opencode/plugins/opencode-tui-usage/`（目录型插件，`Plugin.define id:"opencode-tui-usage"`），入口 `tui.tsx`（TUI 入口，薄壳，import `@opencode/plugin/tui`）+ 同目录子模块 `{model,quota,shared,view,update}/*` 视为单插件，子模块仅被入口 `import`；MVVM 四层：`model/` 数据与纯函数（可单测）、`quota/` 查询服务（fetcher+凭据）、`shared/` 纯帮助函数、`view/` UI（Sidebar=ViewModel 编排）、`update/` 更新检查（版本常量 + GitHub Release 对比）
 - 布局硬约束（opencode2 ≥ beta-18721 发现器）：插件必须是 `.opencode/plugins/`（或 `plugin/`）的**直接子目录**，目录内 `tui.tsx` = TUI 入口（`index.ts`/`server.ts` = server 入口）；**不可**再嵌套（旧 `plugins/tui/opencode-tui-usage.tsx` 形态在 19425 上不被发现、不加载）；直接子 `.tsx` 文件也不会被发现（只认 `.ts`/`.js`）。
 - 入口仅 `tui.tsx`（TUI，import `@opencode/plugin/tui`）：**发现式/脚本安装只需 TUI 入口**。`server.ts`（no-op server 入口，import `@opencode/plugin`，不得触碰 `context.ui`）**仅配置安装需要**（纯 TUI-only 包会被 server 跳过 → CLI 拿不到 → `./tui` 不加载），已随配置安装移除，详见 `docs/config-install.md`
 
@@ -15,14 +15,15 @@
 
 # 发版
 - 版本单一事实源：`.opencode/plugins/opencode-tui-usage/update/version.ts` 的 `VERSION`（SemVer）
-- tag == VERSION（release.yml 校验，不一致即 fail 拦截）；插件自身不做更新检查，用户更新 = 重跑安装脚本
+- tag == VERSION（release.yml 校验，不一致即 fail 拦截）；用户更新 = 重跑安装脚本
+- **启动时自动检查更新**：`update/index.ts` 查 GitHub 最新 Release 对比本地 `VERSION`（走 `github.com/<repo>/releases/latest` 的 **302 跳转**读 `Location`，**不用 `api.github.com`**——未认证限流 60 次/小时、部分网络直接 403），落后则 `view/UpdateBanner.tsx` 在侧边栏底部显示可关闭的单行提示（重跑安装脚本）；无 Release / 网络失败 / 本地超前 → 静默零占位（静默失败原则，见 `update/index.ts` 头注释）。**节流**：结果落盘到插件自己的「本地应用数据」目录（对齐各 OS 的 `LocalApplicationData`：Windows `%LOCALAPPDATA%\opencode-tui-usage\update-check.json`、macOS `~/Library/Application Support/...`、Linux `$XDG_DATA_HOME` 或 `~/.local/share`），成功 TTL 24h / 失败冷却 1h / 查询超时 8s，跨进程共享
 - 流程：改 `VERSION` → commit → `git tag vX.Y.Z` → `git push origin vX.Y.Z` → `.github/workflows/release.yml` 自动创建 Release
 
 # 运行与验证
 - 本地 `Bun 1.3.14`，`TUI` 依赖 `bun:sqlite` 读 `~/.local/share/opencode/opencode.db`
 - 热重载：`B/~BUN/root/chunk-*.js?mtime` 内存打包，opencode2 动态加载，新增/重命名/删除/同名覆盖均无需重启
-- 日志：TUI 插件**无 `app.log`**（client 为 HTTP 客户端；旧文档 `ctx.client.app.log` 会直接崩溃，已踩坑）。`console` 被 TUI 全屏覆盖**不可见**（不进 opencode.log）。诊断走文件日志 `~/.local/share/opencode/log/tui-usage.log`：**默认禁用零开销**，排查时 `$env:TUI_USAGE_PROBE="1"; opencode` 启用（TUI 插件跑在客户端进程），文件超 1MB 自动重建（官方 opencode.log 无限 append 无任何清理，我们自管）；失败统一 `60s` 限流不重试
-- 校验：单元测试 `node --test tests/*.test.ts`（node ≥23.6 原生 TS strip，零依赖；7 个文件：key/quota/model/quota-store/shared/command-code/discovery，全部须过）；改后打包语法检查用 esbuild：`npx --yes esbuild .opencode/plugins/opencode-tui-usage/tui.tsx --bundle --platform=node --format=esm --jsx=automatic --jsx-import-source=@opentui/solid --external:@opencode/plugin/tui --external:@opentui/solid --external:solid-js --outfile=$env:TEMP\opencode\tui-bundle-check.js`（`Done in` 即通过）；`opencode` 启动侧边栏无 `sidebar.content` 崩溃即正常
+- 日志：TUI 插件**无 `app.log`**（client 为 HTTP 客户端；旧文档 `ctx.client.app.log` 会直接崩溃，已踩坑）。`console.*` 被 **OpenTUI 接管到应用内 console 面板**（`renderer.console`，需 keybind 打开；**不进** opencode.log，面板临时、`save-logs` 另存到 `./_console_<ts>.log`）——opencode.log 里只有**宿主插件加载器**的日志（`plugin operation started/completed/failed/stalled`，`packages/tui/src/plugin/context.tsx`）。诊断走文件日志 `<localAppData>/opencode-tui-usage/tui-usage.log`（`shared/paths.ts` 的 `pluginDataDir()`；Windows = `%LOCALAPPDATA%\opencode-tui-usage\`）：**默认禁用零开销**，排查时 `$env:TUI_USAGE_PROBE="1"; opencode` 启用（TUI 插件跑在客户端进程），文件超 1MB 自动重建（官方 opencode.log 无限 append 无任何清理，我们自管）；失败统一 `60s` 限流不重试
+- 校验：单元测试 `node --test tests/*.test.ts`（node ≥23.6 原生 TS strip，零依赖；8 个文件：key/quota/model/quota-store/shared/command-code/discovery/update，全部须过）；改后打包语法检查用 esbuild：`npx --yes esbuild .opencode/plugins/opencode-tui-usage/tui.tsx --bundle --platform=node --format=esm --jsx=automatic --jsx-import-source=@opentui/solid --external:@opencode/plugin/tui --external:@opentui/solid --external:solid-js --outfile=$env:TEMP\opencode\tui-bundle-check.js`（`Done in` 即通过）；`opencode` 启动侧边栏无 `sidebar.content` 崩溃即正常
 - 官方源码速查：v2 仓库 = `sst/opencode`（TS monorepo，**`opencode-ai/opencode` 已归档勿用**）；日志实现 `packages/core/src/observability/logging.ts`（`Logger.toFile(..., { flag: "a" })`，**opencode.log 无轮转/截断/清理**）；查代码用 sparse clone 绕过 GitHub code search 对超大仓库的截断：`git clone --depth 1 --filter=blob:none --sparse <url> && git -C <dir> sparse-checkout set packages/core packages/tui`
 
 # opencode2 版本与插件加载

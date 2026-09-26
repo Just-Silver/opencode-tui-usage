@@ -5,7 +5,6 @@
 import { createEffect, createMemo, createSignal, onCleanup, Show, type JSX } from "solid-js"
 import { usePlugin } from "@opencode/plugin/tui"
 import { appendFileSync, rmSync, statSync } from "fs"
-import { homedir } from "os"
 import { join } from "path"
 import {
   aggregateUsage,
@@ -18,7 +17,9 @@ import {
 import { getQuotaStore, QUOTA_REFRESH_MS, type QuotaDeps } from "../model/quota.ts"
 import { fetchQuota, getProviderApiUrl, isQuotaProvider } from "../quota/index.ts"
 import { resolveProviderKey } from "../quota/key.ts"
+import { pluginDataDir } from "../shared/paths.ts"
 import { QuotaSection } from "./QuotaSection.tsx"
+import { UpdateBanner } from "./UpdateBanner.tsx"
 import { UsageSection } from "./UsageSection.tsx"
 
 // 进程内单例（跨 render 持久，与重构前模块级 Map 语义一致；deps 仅首次创建时生效）
@@ -28,12 +29,14 @@ function quotaStore(deps: QuotaDeps) {
   return store
 }
 
-// ── 文件日志通道（长期保留：TUI console 不可见，文件日志为唯一诊断通道） ──
-// 默认禁用（零开销）；排查问题时设置 TUI_USAGE_PROBE=1 再启动 opencode 客户端即启用：
+// ── 文件日志通道（默认关，排查用） ──
+// OpenTUI 会接管全局 console.* 到应用内 console 面板（需 keybind 打开、不落 opencode.log、且临时），
+// 要持久留档 / 便于 grep 仍走本文件日志。
+// 默认禁用（零开销）；排查时设置 TUI_USAGE_PROBE=1 再启动 opencode 客户端即启用：
 //   pwsh: $env:TUI_USAGE_PROBE="1"; opencode
-// 1MB 自我保护：官方 opencode.log 无任何清理机制，我们自己的日志文件自管（超限重建）
+// 1MB 自我保护：opencode.log 无任何清理机制，我们自己的日志文件自管（超限重建）
 const PROBE_ENABLED = process.env.TUI_USAGE_PROBE === "1"
-const probeLogPath = () => join(homedir(), ".local", "share", "opencode", "log", "tui-usage.log")
+const probeLogPath = () => join(pluginDataDir(), "tui-usage.log")
 const logToFile = (msg: string) => {
   if (!PROBE_ENABLED) return
   try {
@@ -141,6 +144,8 @@ export function Sidebar(props: { sessionID?: string }): JSX.Element {
           </box>
         )}
       </Show>
+      {/* 更新提示：不依赖会话数据，放在插件最下方，轻量一行、可关闭 */}
+      <UpdateBanner theme={theme} />
     </box>
   )
 }

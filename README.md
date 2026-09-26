@@ -22,6 +22,8 @@ irm https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main/instal
 
 重新运行一次上面的安装脚本即可（脚本会以最新版原子替换旧目录），随后重启 opencode。
 
+插件启动时会自动对比本地版本与 GitHub 最新 Release，有新版本时在侧边栏底部显示一行黄色提示（可点 `✕` 关闭，本次会话内不再出现）。
+
 ## 卸载
 
 Linux / macOS（bash）：
