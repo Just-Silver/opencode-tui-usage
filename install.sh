@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # opencode-tui-usage 全局安装脚本（bash）
 # 用法: curl -fsSL https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main/install.sh | bash
+# 说明: 安装/更新到「最新 Release」版本（与 TUI 内一键更新的取源一致），非 main。
 set -euo pipefail
-REPO_URL="https://github.com/Just-Silver/opencode-tui-usage.git"
-# archive 端点不接受 .git 后缀（实测 404），独立变量避免与 clone URL 混用
-ARCHIVE_URL="https://github.com/Just-Silver/opencode-tui-usage/archive/main.tar.gz"
+REPO="Just-Silver/opencode-tui-usage"
+REPO_URL="https://github.com/$REPO.git"
+# releases/latest 是 302 跳转：读最终 URL 尾部即最新 tag（不用 api.github.com，避免限流/403）
+LATEST_URL="https://github.com/$REPO/releases/latest"
 XDG_BASE="${XDG_CONFIG_HOME:-$HOME/.config}"
 PLUGINS_DIR="$XDG_BASE/opencode/plugins"
 # opencode2 ≥ 0.0.0-beta-18721 的发现器只认 plugins/ 的直接子项，且目录型插件以 tui.tsx 为 TUI 入口：
@@ -22,13 +24,35 @@ else
   GREEN=''; RED=''; YELLOW=''; RESET=''
 fi
 
+# 解析最新 Release 的 tag：优先 curl 跟随 302 读最终 URL，回退 git ls-remote（按版本号倒序取第一个）
+resolve_latest_tag() {
+  if command -v curl >/dev/null 2>&1; then
+    local url
+    url="$(curl -fsSL -o /dev/null -w '%{url_effective}' "$LATEST_URL" 2>/dev/null || true)"
+    case "$url" in
+      */releases/tag/*) printf '%s' "${url##*/releases/tag/}"; return 0 ;;
+    esac
+  fi
+  if command -v git >/dev/null 2>&1; then
+    git ls-remote --tags --refs --sort=-v:refname "$REPO_URL" 2>/dev/null | head -n1 | sed -n 's#.*refs/tags/##p'
+  fi
+}
+
+TAG="$(resolve_latest_tag)"
+if [ -z "$TAG" ]; then
+  printf "${RED}无法解析最新 Release（检查网络 / 仓库是否有 Release）${RESET}\n" >&2
+  exit 1
+fi
+ARCHIVE_URL="https://github.com/$REPO/archive/refs/tags/$TAG.tar.gz"
+
+echo "→ 最新 Release: $TAG"
 echo "→ 目标目录: $DEST"
 mkdir -p "$PLUGINS_DIR"
 
 cloned=0
 if command -v git >/dev/null 2>&1; then
-  echo "→ git clone --depth 1 $REPO_URL"
-  if git clone --depth 1 "$REPO_URL" "$TMP" 2>/dev/null && [ -f "$TMP/.opencode/plugins/opencode-tui-usage/tui.tsx" ]; then
+  echo "→ git clone --depth 1 --branch $TAG $REPO_URL"
+  if git clone --depth 1 --branch "$TAG" "$REPO_URL" "$TMP" 2>/dev/null && [ -f "$TMP/.opencode/plugins/opencode-tui-usage/tui.tsx" ]; then
     cloned=1
   else
     printf "${YELLOW}warn: git clone 失败，尝试 curl 回退${RESET}\n" >&2

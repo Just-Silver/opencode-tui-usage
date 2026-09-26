@@ -1,10 +1,12 @@
 #Requires -Version 7.0
 # opencode-tui-usage 全局安装脚本（PowerShell 7.6.5）
 # 用法: irm https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main/install.ps1 | iex
+# 说明: 安装/更新到「最新 Release」版本（与 TUI 内一键更新的取源一致），非 main。
 $ErrorActionPreference = "Stop"
-$RepoUrl = "https://github.com/Just-Silver/opencode-tui-usage.git"
-# archive 端点不接受 .git 后缀（实测 404），独立变量避免与 clone URL 混用
-$ArchiveUrl = "https://github.com/Just-Silver/opencode-tui-usage/archive/main.tar.gz"
+$Repo = "Just-Silver/opencode-tui-usage"
+$RepoUrl = "https://github.com/$Repo.git"
+# releases/latest 是 302 跳转：读最终 URL 尾部即最新 tag（不用 api.github.com，避免限流/403）
+$LatestUrl = "https://github.com/$Repo/releases/latest"
 
 function Get-GlobalPluginsDir {
   $base = if ($env:XDG_CONFIG_HOME -and $env:XDG_CONFIG_HOME.Trim()) { $env:XDG_CONFIG_HOME } else { Join-Path $HOME ".config" }
@@ -12,6 +14,19 @@ function Get-GlobalPluginsDir {
 }
 
 function Test-Command($name) { $null -ne (Get-Command $name -ErrorAction SilentlyContinue) }
+
+# 解析最新 Release 的 tag：优先 curl.exe 跟随 302 读最终 URL，回退 git ls-remote（按版本号倒序取第一个）
+function Resolve-LatestTag {
+  if (Test-Command curl.exe) {
+    $final = curl.exe -fsSL -o NUL -w '%{url_effective}' $LatestUrl 2>$null
+    if ("$final" -match '/releases/tag/([^/?#]+)') { return $Matches[1] }
+  }
+  if (Test-Command git) {
+    $line = git ls-remote --tags --refs --sort=-v:refname $RepoUrl 2>$null | Select-Object -First 1
+    if ("$line" -match 'refs/tags/(\S+)') { return $Matches[1] }
+  }
+  return $null
+}
 
 # opencode2 ≥ 0.0.0-beta-18721 的发现器只认 plugins/ 的直接子项，且目录型插件以 tui.tsx 为 TUI 入口：
 # 整个插件必须落在单个目录 plugins/opencode-tui-usage/（入口 tui.tsx + 子模块），不能再是嵌套的 plugins/tui/opencode-tui-usage.tsx
@@ -22,13 +37,18 @@ $tmp = Join-Path ([IO.Path]::GetTempPath()) ("opencode-tui-usage-" + [Guid]::New
 $stage = Join-Path $pluginsDir ".tmp.opencode-tui-usage"
 
 try {
+  $tag = Resolve-LatestTag
+  if (-not $tag) { throw "无法解析最新 Release（检查网络 / 仓库是否有 Release）" }
+  $archiveUrl = "https://github.com/$Repo/archive/refs/tags/$tag.tar.gz"
+
+  Write-Host "→ 最新 Release: $tag"
   Write-Host "→ 目标目录: $dest"
   New-Item -ItemType Directory -Force -Path $pluginsDir | Out-Null
 
   $cloned = $false
   if (Test-Command git) {
-    Write-Host "→ git clone --depth 1 $RepoUrl"
-    git clone --depth 1 $RepoUrl $tmp 2>&1 | Out-Null
+    Write-Host "→ git clone --depth 1 --branch $tag $RepoUrl"
+    git clone --depth 1 --branch $tag $RepoUrl $tmp 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0 -and (Test-Path (Join-Path $tmp ".opencode\plugins\opencode-tui-usage\tui.tsx"))) {
       $cloned = $true
     } else {
@@ -43,8 +63,8 @@ try {
     if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue }
     New-Item -ItemType Directory -Force -Path $tmp | Out-Null
     $tar = Join-Path $tmp "archive.tar.gz"
-    Write-Host "→ curl.exe $ArchiveUrl"
-    curl.exe -fsSL "$ArchiveUrl" -o $tar 2>&1 | Out-Null
+    Write-Host "→ curl.exe $archiveUrl"
+    curl.exe -fsSL "$archiveUrl" -o $tar 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "curl 下载失败 (exit $LASTEXITCODE)" }
     tar -xzf $tar -C $tmp --strip-components=1 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "tar 解压失败 (exit $LASTEXITCODE)" }

@@ -16,7 +16,7 @@ Windows（PowerShell 7+）：
 irm https://raw.githubusercontent.com/Just-Silver/opencode-tui-usage/main/install.ps1 | iex
 ```
 
-脚本会把插件整目录安装到全局插件目录（Linux/macOS 为 `~/.config/opencode/plugins/opencode-tui-usage/`，Windows 为 `%USERPROFILE%\.config\opencode\plugins\opencode-tui-usage\`），重启 opencode 生效。
+脚本会把插件整目录安装到全局插件目录（Linux/macOS 为 `~/.config/opencode/plugins/opencode-tui-usage/`，Windows 为 `%USERPROFILE%\.config\opencode\plugins\opencode-tui-usage\`），重启 opencode 生效。安装的是**最新 Release** 版本（与插件内一键更新同一取源）。
 
 ## 更新
 

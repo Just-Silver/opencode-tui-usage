@@ -9,7 +9,7 @@
 - 入口仅 `tui.tsx`（TUI，import `@opencode/plugin/tui`）：**发现式/脚本安装只需 TUI 入口**。`server.ts`（no-op server 入口，import `@opencode/plugin`，不得触碰 `context.ui`）**仅配置安装需要**（纯 TUI-only 包会被 server 跳过 → CLI 拿不到 → `./tui` 不加载），已随配置安装移除，详见 `docs/config-install.md`
 
 # 分发安装
-- **面向用户：脚本安装（发现式）**。`install.sh` / `install.ps1` 从 GitHub（git clone 失败回退 archive tar.gz）取插件，整目录**原子**装到 `$XDG_CONFIG_HOME/opencode/plugins/opencode-tui-usage/`（默认 `~/.config/opencode/plugins/...`；Windows 取 `$HOME/.config`）；`uninstall.sh` / `uninstall.ps1` 删该目录并清理 ≤18707 旧布局（`plugins/tui/*`）残留。安装后重启 opencode 生效；更新 = 重跑安装脚本
+- **面向用户：脚本安装（发现式）**。`install.sh` / `install.ps1` 取**最新 Release**（先解析 `github.com/<repo>/releases/latest` 的 302 tag，再 `git clone --depth 1 --branch <tag>`，失败回退 `archive/refs/tags/<tag>.tar.gz`；**与 TUI 一键更新取源一致，非 `main`**），整目录**原子**装到 `$XDG_CONFIG_HOME/opencode/plugins/opencode-tui-usage/`（默认 `~/.config/opencode/plugins/...`；Windows 取 `$HOME/.config`）；`uninstall.sh` / `uninstall.ps1` 删该目录并清理 ≤18707 旧布局（`plugins/tui/*`）残留。安装后重启 opencode 生效；更新 = 重跑安装脚本（或 TUI 内一键更新）
 - 脚本落在 `plugins/` **直接子目录**且在 `node_modules` 之外 → 走 OpenTUI 运行时桥接，Solid 响应式正常。**这是 TUI 插件当前唯一可用的安装方式**
 - **配置安装（`opencode.json(c)` 的 `plugins`）当前不用于本插件**：会把插件装进 `node_modules`，npm 自动安装的 peer 依赖（`solid-js`/`@opentui/*`）导致**双 Solid 运行时** → 只画首帧、不再刷新（现象：侧边栏首次为空、切一次会话才显示）。上游未修复（#33884/#39986 OPEN）；非 TUI（server）插件不受影响。完整方法学/验证判据整理在 `docs/config-install.md`
 
