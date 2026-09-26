@@ -79,6 +79,12 @@ export function writeUpdateCache(path: string, cache: UpdateCheckCache): void {
   }
 }
 
+// 更新成功后调用：把缓存标记为「已是最新」（清空 latest + 刷新成功时间）
+// → 横幅立即消失，且 24h 内不再联网（避免刚更新完又提示；重启后新版本 VERSION 也会自然对齐）
+export function markUpdated(now: number = Date.now(), cachePath: string = updateCachePath()): void {
+  writeUpdateCache(cachePath, { lastAttemptAt: now, lastSuccessAt: now })
+}
+
 // 纯逻辑（离线可测）：本地版本 vs 远程 tag → 是否需要提示
 export function resolveUpdate(
   local: string,

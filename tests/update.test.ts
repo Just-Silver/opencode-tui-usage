@@ -17,6 +17,7 @@ import {
   writeUpdateCache,
   checkForUpdate,
   updateCachePath,
+  markUpdated,
 } from "../.opencode/plugins/opencode-tui-usage/update/index.ts"
 import type { UpdateCheckCache } from "../.opencode/plugins/opencode-tui-usage/update/index.ts"
 
@@ -216,4 +217,20 @@ test("checkForUpdate：缓存过期 + 失败 → 仅更新 lastAttemptAt，保�
   })
   assert.deepEqual(written, { lastAttemptAt: now, lastSuccessAt: now - 25 * H, latest: "v99.0.0" })
   assert.deepEqual(info, { latestVersion: "99.0.0", name: "v99.0.0", body: undefined })
+})
+
+// ─── index.ts markUpdated（更新成功后清缓存） ───
+test("markUpdated：清空 latest + 刷新成功时间 → 不再提示且 24h 内不联网", () => {
+  const dir = mkdtempSync(join(tmpdir(), "otu-mark-"))
+  try {
+    const p = join(dir, "update-check.json")
+    writeUpdateCache(p, { lastAttemptAt: 1, lastSuccessAt: 1, latest: "v99.0.0" })
+    markUpdated(123, p)
+    const cache = readUpdateCache(p)
+    assert.deepEqual(cache, { lastAttemptAt: 123, lastSuccessAt: 123, latest: undefined })
+    assert.equal(resolveUpdate("2.0.0", cache?.latest), undefined) // 无 latest → 不提示
+    assert.equal(isCacheFresh(cache, 123 + 60 * 60 * 1000), true) // 成功 TTL 内 → 不联网
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })

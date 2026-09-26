@@ -4,11 +4,13 @@
 //   - 单行窄条（不换行、不撑高），置于插件最下方
 //   - 右侧提供 ✕ 关闭按钮（点击即消失，本会话内不再出现）
 //   - 无更新 / 检查失败 / 已关闭 → 零占位（完全不渲染）
-// 展示：⚡ v1.1.0 可用 · 重跑 install.sh [✕]
+// 展示：⚡ v1.1.0 可用 · 点击更新 [✕]（点正文 → 弹出更新弹窗）
 /** @jsxImportSource @opentui/solid */
 import { createSignal, Show, type JSX } from "solid-js"
+import { usePlugin } from "@opencode/plugin/tui"
 import { checkForUpdate, type UpdateInfo } from "../update/index.ts"
 import type { ThemeLike } from "./theme.ts"
+import { UpdateDialog } from "./UpdateDialog.tsx"
 
 const BANNER_FG = "#ffd93d" // 亮黄字（与 WARN_COLOR 同系）
 const BANNER_DIM = "#a8a8a8" // 关闭按钮暗色
@@ -18,6 +20,7 @@ const CLOSE_LABEL = "✕"
 let dismissed = false
 
 export function UpdateBanner(props: { theme: ThemeLike }): JSX.Element {
+  const ctx = usePlugin()
   // 信号驱动：真实检查，异步完成后写入；无更新/失败 → undefined → 不渲染
   const [update, setUpdate] = createSignal<UpdateInfo | undefined>(undefined)
 
@@ -32,6 +35,11 @@ export function UpdateBanner(props: { theme: ThemeLike }): JSX.Element {
     setUpdate(undefined)
   }
 
+  // 点击正文 → 弹出更新弹窗；更新成功后 onUpdated 让横幅消失
+  const open = (version: string) => {
+    ctx.ui.dialog.show(() => <UpdateDialog version={version} onUpdated={dismiss} />)
+  }
+
   // 无更新 / 已关闭 → 不渲染（零占位）
   // when 直接传 update()（对象）→ Show 回调拿到的是对象；dismissed 在内部判
   return (
@@ -44,7 +52,9 @@ export function UpdateBanner(props: { theme: ThemeLike }): JSX.Element {
             height={1} // 单行不撑高
             alignItems="center"
           >
-            <text fg={BANNER_FG}>⚡ v{u().latestVersion} 可用 · 重跑 install.sh</text>
+            <text fg={BANNER_FG} onMouseUp={() => open(u().latestVersion)} cursor="pointer">
+              ⚡ v{u().latestVersion} 可用 · 点击更新
+            </text>
             <text fg={BANNER_DIM} onMouseDown={dismiss} cursor="pointer">
               {CLOSE_LABEL}
             </text>
