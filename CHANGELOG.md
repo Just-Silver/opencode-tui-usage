@@ -3,6 +3,21 @@
 本仓库所有重要变更记录于此，格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [2.2.0] - 2026-09-26
+
+
+### 修复
+
+- 一键更新改为插件内自包含（避免 Windows Defender 误报）
+- 安装脚本改为取最新 Release（与 TUI 一键更新对齐）
+
+### 新功能
+
+- 更新横幅支持一键更新（弹窗 + 执行官方安装脚本）
+
+### 杂项
+
+- 更新 CHANGELOG 到 v2.1.0
 ## [2.1.0] - 2026-09-26
 
 
