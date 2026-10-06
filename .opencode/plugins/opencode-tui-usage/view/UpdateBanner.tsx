@@ -9,17 +9,15 @@
 import { createSignal, Show, type JSX } from "solid-js"
 import { usePlugin } from "@opencode/plugin/tui"
 import { checkForUpdate, type UpdateInfo } from "../update/index.ts"
-import type { ThemeLike } from "./theme.ts"
+import { DIVIDER_COLOR, MUTED_COLOR, WARN_COLOR } from "./theme.ts"
 import { UpdateDialog } from "./UpdateDialog.tsx"
 
-const BANNER_FG = "#ffd93d" // 亮黄字（与 WARN_COLOR 同系）
-const BANNER_DIM = "#a8a8a8" // 关闭按钮暗色
 const CLOSE_LABEL = "✕"
 
 // 模块级关闭标记：会话内关闭一次即不再打扰（跨组件重建保持）
 let dismissed = false
 
-export function UpdateBanner(props: { theme: ThemeLike }): JSX.Element {
+export function UpdateBanner(): JSX.Element {
   const ctx = usePlugin()
   // 信号驱动：真实检查，异步完成后写入；无更新/失败 → undefined → 不渲染
   const [update, setUpdate] = createSignal<UpdateInfo | undefined>(undefined)
@@ -52,10 +50,10 @@ export function UpdateBanner(props: { theme: ThemeLike }): JSX.Element {
             height={1} // 单行不撑高
             alignItems="center"
           >
-            <text fg={BANNER_FG} onMouseUp={() => open(u().latestVersion)} cursor="pointer">
+            <text fg={WARN_COLOR} onMouseUp={() => open(u().latestVersion)} cursor="pointer">
               ⚡ v{u().latestVersion} 可用 · 点击更新
             </text>
-            <text fg={BANNER_DIM} onMouseDown={dismiss} cursor="pointer">
+            <text fg={MUTED_COLOR} onMouseDown={dismiss} cursor="pointer">
               {CLOSE_LABEL}
             </text>
           </box>

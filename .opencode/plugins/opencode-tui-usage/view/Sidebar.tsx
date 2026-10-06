@@ -19,6 +19,7 @@ import { fetchQuota, getProviderApiUrl, isQuotaProvider } from "../quota/index.t
 import { resolveProviderKey } from "../quota/key.ts"
 import { pluginDataDir } from "../shared/paths.ts"
 import { QuotaSection } from "./QuotaSection.tsx"
+import { BORDER_COLOR } from "./theme.ts"
 import { UpdateBanner } from "./UpdateBanner.tsx"
 import { UsageSection } from "./UsageSection.tsx"
 
@@ -55,7 +56,6 @@ logToFile("sidebar module loaded")
 
 export function Sidebar(props: { sessionID?: string }): JSX.Element {
   const ctx = usePlugin()
-  const theme = ctx.theme
   const sessionID = props.sessionID
 
   // ── 数据源 getter（在 memo 内调用即订阅） ──
@@ -128,24 +128,33 @@ export function Sidebar(props: { sessionID?: string }): JSX.Element {
   onCleanup(() => clearInterval(timer))
 
   return (
-    <box flexDirection="column" gap={1}>
+    // 单面板外框：整个插件（会话 + 额度 + 更新横幅）共用一个带边框的盒子
+    <box
+      flexDirection="column"
+      gap={1}
+      border
+      borderColor={BORDER_COLOR}
+      paddingLeft={1}
+      paddingRight={1}
+      paddingTop={0}
+      paddingBottom={0}
+    >
       <Show when={usage()}>
         {(u) => (
           <box flexDirection="column" gap={1}>
             <UsageSection
-              theme={theme}
               usage={u()}
               ctxUsage={ctxUsage()}
               ctxPct={ctxPct()}
               limit={limit()}
               cacheRate={cacheRate()}
             />
-            <QuotaSection theme={theme} quota={quota()} />
+            <QuotaSection quota={quota()} />
           </box>
         )}
       </Show>
       {/* 更新提示：不依赖会话数据，放在插件最下方，轻量一行、可关闭 */}
-      <UpdateBanner theme={theme} />
+      <UpdateBanner />
     </box>
   )
 }

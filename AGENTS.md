@@ -48,3 +48,11 @@
 - **组件函数体只执行一次**：禁止 `const q = props.xxx` 这类 props 快照 const——挂载后 props 更新不生效（历史 bug：QuotaSection/UsageSection/ColorBar 均踩过，额度不显示、压缩上下文后进度条不刷新皆源于此）
 - 取值必须发生在 **JSX 表达式位置**（Solid 编译器包装为响应式 getter），或惰性函数（`const pct = () => quotaPct(props.quota?.rolling)`）在 JSX 内调用
 - 组件文件头部已含此约束注释；新增展示组件时必须遵守
+
+# UI 视觉规范（view 层，2026-10-06 定）
+- **配色固定用 opencode 默认主题色（不跟随 `ctx.theme`）**，单一事实源 `view/theme.ts`：primary `#fab283`（区块标题）/ text `#eeeeee` / muted `#808080` / 绿 `#7fd88f` / 橙 `#f5a742` / 红 `#e06c75` / 边框 `#484848` / 分隔线 `#3c3c3c` / 进度条轨道 `#1e1e1e`。色值取自 opencode 官方主题 `packages/tui/src/theme/assets/opencode.json`（defs.dark*）；进度阈值不变（<50 绿 / ≥50 橙 / ≥85 红，`pctColor(pct)` 不再收 theme 参数）。**view 层组件不再接 `theme` prop**（UpdateBanner/UsageSection/QuotaSection/Sidebar 均已移除；Sidebar 仍需 `usePlugin()` 取 `ctx.data`）
+- **面板**：整个插件（会话 + 额度 + 更新横幅）共用一个带边框盒子（`border` + `borderColor`，`paddingLeft/Right=1`、`paddingTop/Bottom=0`）。**不用整行 `backgroundColor` 色块做分隔线**——1 行高的实心色块视觉厚重（踩过，用户否决）；分隔线一律用 `─` 字符线（`dividerLine(rowWidth())`）
+- **区块**：标题行（▼/▶ + 橙金粗体标题，折叠时摘要右对齐）**自成一行**，分隔线在其**下方独立一行**（不是跟在标题文字后面、也不是同行的填充线——这是参考项目 opencode-visual-cache 的实际形态，用户明确要求）
+- **行宽测量**：`ref` + `onSizeChange` → `rowWidth` signal → 字符线按测量宽 repeat（首帧 0 时 `dividerLine` 返回最少 1 个字符）
+- **数值行**：`box flexDirection="row"` = label + `flexGrow` 垫片 + 右对齐 value/share 列；数值列是纯 ASCII，用 `padStart` 定宽右对齐即可，**中文标签不需要 visualWidth**（flex 垫片自动处理）。仅摘要等含 CJK 的字符串拼接才需要 `visualWidth`（`shared/format.ts`，纯函数可单测；`dividerLine` 同）
+- **无数据区块整块不渲染**：额度供应商不在白名单（如 deepseek）时，额度区块连标题/分隔线都不显示（不给「不支持」提示——用户明确要求不显示）

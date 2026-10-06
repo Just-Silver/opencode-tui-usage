@@ -1,7 +1,7 @@
 // ─── shared/ 共享帮助函数单元测试 ───
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { fmtPct, fmtPctInt, fmtTokens, quotaPct, sharePct, trimZero } from "../.opencode/plugins/opencode-tui-usage/shared/format.ts"
+import { dividerLine, fmtPct, fmtPctInt, fmtTokens, quotaPct, sharePct, trimZero, visualWidth } from "../.opencode/plugins/opencode-tui-usage/shared/format.ts"
 import { normID } from "../.opencode/plugins/opencode-tui-usage/shared/id.ts"
 import { parseJson } from "../.opencode/plugins/opencode-tui-usage/shared/jsonc.ts"
 
@@ -58,4 +58,21 @@ test("fmtPct / sharePct / fmtPctInt / quotaPct", () => {
   assert.equal(quotaPct({ status: "fail", percent: 42 }), undefined)
   assert.equal(quotaPct({ status: "ok" }), undefined)
   assert.equal(quotaPct(undefined), undefined)
+})
+
+// ─── visualWidth：CJK 占 2 列 ───
+test("visualWidth：ASCII 1 列、中文/全角 2 列", () => {
+  assert.equal(visualWidth(""), 0)
+  assert.equal(visualWidth("abc"), 3)
+  assert.equal(visualWidth("会话"), 4) // CJK 每字 2 列
+  assert.equal(visualWidth("5h"), 2)
+  assert.equal(visualWidth("（12.3k）"), 2 + 5 + 2) // 全角括号各 2 列，"12.3k" 5 字符
+})
+
+// ─── dividerLine：分隔线宽度 ───
+test("dividerLine：按宽度重复，最少 1 个字符", () => {
+  assert.equal(dividerLine(30), "─".repeat(30))
+  assert.equal(dividerLine(30).length, 30)
+  assert.equal(dividerLine(0).length, 1) // 宽度未测量（首帧 0）→ 至少 1 个
+  assert.equal(dividerLine(-5).length, 1)
 })

@@ -12,9 +12,7 @@ import { createSignal, Match, Show, Switch, type JSX } from "solid-js"
 import { usePlugin } from "@opencode/plugin/tui"
 import { applyUpdate } from "../update/apply.ts"
 import { markUpdated } from "../update/index.ts"
-import { ERROR_COLOR, INPUT_COLOR, WARN_COLOR } from "./theme.ts"
-
-const MUTED = "#a8a8a8"
+import { ERROR_COLOR, INPUT_COLOR, MUTED_COLOR, WARN_COLOR } from "./theme.ts"
 
 type Phase = "available" | "updating" | "done" | "failed"
 
@@ -67,22 +65,22 @@ export function UpdateDialog(props: { version: string; onUpdated?: () => void })
     <box paddingLeft={2} paddingRight={2} gap={1}>
       <box flexDirection="row" justifyContent="space-between">
         <text fg={WARN_COLOR}>⚡ 更新 opencode-tui-usage</text>
-        <text fg={MUTED} onMouseUp={close} cursor="pointer">
+        <text fg={MUTED_COLOR} onMouseUp={close} cursor="pointer">
           esc
         </text>
       </box>
       <box flexDirection="column">
         <Switch>
           <Match when={phase() === "available"}>
-            <text fg={MUTED}>发现新版本 v{props.version}，是否立即更新？</text>
-            <text fg={MUTED}>将重新下载并替换插件目录。</text>
+            <text fg={MUTED_COLOR}>发现新版本 v{props.version}，是否立即更新？</text>
+            <text fg={MUTED_COLOR}>将重新下载并替换插件目录。</text>
           </Match>
           <Match when={phase() === "updating"}>
             <text fg={WARN_COLOR}>正在更新…（下载并安装 v{props.version}）</text>
           </Match>
           <Match when={phase() === "done"}>
             <text fg={INPUT_COLOR}>更新完成，重启 opencode 生效。</text>
-            <text fg={MUTED}>点「重启」退出 opencode，重新启动即可（会话自动恢复）。</text>
+            <text fg={MUTED_COLOR}>点「重启」退出 opencode，重新启动即可（会话自动恢复）。</text>
           </Match>
           <Match when={phase() === "failed"}>
             <text fg={ERROR_COLOR}>更新失败：</text>
@@ -94,7 +92,7 @@ export function UpdateDialog(props: { version: string; onUpdated?: () => void })
       </box>
       <box flexDirection="row" justifyContent="flex-end" gap={2} paddingBottom={1}>
         <Show when={phase() === "available"}>
-          <text fg={MUTED} onMouseUp={close} cursor="pointer">
+          <text fg={MUTED_COLOR} onMouseUp={close} cursor="pointer">
             取消
           </text>
           <text fg={WARN_COLOR} onMouseUp={() => void run()} cursor="pointer">
@@ -102,7 +100,7 @@ export function UpdateDialog(props: { version: string; onUpdated?: () => void })
           </text>
         </Show>
         <Show when={phase() === "done"}>
-          <text fg={MUTED} onMouseUp={close} cursor="pointer">
+          <text fg={MUTED_COLOR} onMouseUp={close} cursor="pointer">
             稍后
           </text>
           <text fg={WARN_COLOR} onMouseUp={restart} cursor="pointer">

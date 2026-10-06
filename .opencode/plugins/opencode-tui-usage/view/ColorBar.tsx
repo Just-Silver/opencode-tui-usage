@@ -5,13 +5,14 @@
 // （轨道底色标出全长，即使 8% 也能看出占比；1 行高度不用 border，避免 border 占掉内容区）
 /** @jsxImportSource @opentui/solid */
 import { Show, type JSX } from "solid-js"
+import { TRACK_COLOR } from "./theme.ts"
 
 export function ColorBar(props: { pct: number | undefined; color: string }): JSX.Element {
   // 惰性纯函数：在 JSX 表达式位置调用才求值 → 随 props.pct 更新响应式重算
   const clamped = (p: number | undefined) => (p === undefined ? 0 : Math.max(0, Math.min(100, p)))
   return (
     <Show when={props.pct !== undefined}>
-      <box flexDirection="row" flexGrow={1} flexShrink={0} minWidth={0} height={1} backgroundColor="#2e2e2e">
+      <box flexDirection="row" flexGrow={1} flexShrink={0} minWidth={0} height={1} backgroundColor={TRACK_COLOR}>
         <box backgroundColor={props.color} flexGrow={clamped(props.pct)} flexShrink={0} />
         <box flexGrow={100 - clamped(props.pct)} flexShrink={0} />
       </box>
