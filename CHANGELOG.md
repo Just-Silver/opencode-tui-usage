@@ -3,6 +3,16 @@
 本仓库所有重要变更记录于此，格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [2.3.0] - 2026-10-06
+
+
+### 新功能
+
+- 侧边栏视觉改版（带边框面板 + opencode 主题配色 + 数值右对齐）
+
+### 杂项
+
+- 更新 CHANGELOG 到 v2.2.0
 ## [2.2.0] - 2026-09-26
 
 
