@@ -51,7 +51,7 @@
 
 # UI 视觉规范（view 层，2026-10-06 定）
 - **配色固定用 opencode 默认主题色（不跟随 `ctx.theme`）**，单一事实源 `view/theme.ts`：primary `#fab283`（区块标题）/ text `#eeeeee` / muted `#808080` / 绿 `#7fd88f` / 橙 `#f5a742` / 红 `#e06c75` / 边框 `#484848` / 分隔线 `#3c3c3c` / 进度条轨道 `#1e1e1e`。色值取自 opencode 官方主题 `packages/tui/src/theme/assets/opencode.json`（defs.dark*）；进度阈值不变（<50 绿 / ≥50 橙 / ≥85 红，`pctColor(pct)` 不再收 theme 参数）。**view 层组件不再接 `theme` prop**（UpdateBanner/UsageSection/QuotaSection/Sidebar 均已移除；Sidebar 仍需 `usePlugin()` 取 `ctx.data`）
-- **面板**：整个插件（会话 + 额度 + 更新横幅）共用一个带边框盒子（`border` + `borderColor`，`paddingLeft/Right=1`、`paddingTop/Bottom=0`）。**不用整行 `backgroundColor` 色块做分隔线**——1 行高的实心色块视觉厚重（踩过，用户否决）；分隔线一律用 `─` 字符线（`dividerLine(rowWidth())`）
+- **面板**：整个插件（会话 + 额度 + 更新横幅）共用一个带边框盒子（`border` + `borderColor`，`paddingLeft/Right=1`、`paddingTop/Bottom=0`）。**盒子整体由 `Sidebar` 的 `hasContent()` 门控**（`usage() !== undefined || showUpdate()`）：无用量且无更新提示时**整块不渲染**，避免会话初始（尚无事件、`usage()` 为 `undefined`）出现空边框占位。更新检查状态因此上提到 `Sidebar`（ViewModel）持有，`UpdateBanner` 改为纯展示（`props.update` + `onDismiss`）——否则检查随空盒子卸载，横幅永不出现。**不用整行 `backgroundColor` 色块做分隔线**——1 行高的实心色块视觉厚重（踩过，用户否决）；分隔线一律用 `─` 字符线（`dividerLine(rowWidth())`）
 - **区块**：标题行（▼/▶ + 橙金粗体标题，折叠时摘要右对齐）**自成一行**，分隔线在其**下方独立一行**（不是跟在标题文字后面、也不是同行的填充线——这是参考项目 opencode-visual-cache 的实际形态，用户明确要求）
 - **行宽测量**：`ref` + `onSizeChange` → `rowWidth` signal → 字符线按测量宽 repeat（首帧 0 时 `dividerLine` 返回最少 1 个字符）
 - **数值行**：`box flexDirection="row"` = label + `flexGrow` 垫片 + 右对齐 value/share 列；数值列是纯 ASCII，用 `padStart` 定宽右对齐即可，**中文标签不需要 visualWidth**（flex 垫片自动处理）。仅摘要等含 CJK 的字符串拼接才需要 `visualWidth`（`shared/format.ts`，纯函数可单测；`dividerLine` 同）

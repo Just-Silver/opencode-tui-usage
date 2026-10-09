@@ -18,6 +18,7 @@ import { getQuotaStore, QUOTA_REFRESH_MS, type QuotaDeps } from "../model/quota.
 import { fetchQuota, getProviderApiUrl, isQuotaProvider } from "../quota/index.ts"
 import { resolveProviderKey } from "../quota/key.ts"
 import { pluginDataDir } from "../shared/paths.ts"
+import { checkForUpdate, type UpdateInfo } from "../update/index.ts"
 import { QuotaSection } from "./QuotaSection.tsx"
 import { BORDER_COLOR } from "./theme.ts"
 import { UpdateBanner } from "./UpdateBanner.tsx"
@@ -29,6 +30,9 @@ function quotaStore(deps: QuotaDeps) {
   if (!store) store = getQuotaStore(deps)
   return store
 }
+
+// 会话内关闭更新横幅一次即不再打扰（模块级：跨侧边栏重建保持）
+let updateDismissedOnce = false
 
 // ── 文件日志通道（默认关，排查用） ──
 // OpenTUI 会接管全局 console.* 到应用内 console 面板（需 keybind 打开、不落 opencode.log、且临时），
@@ -127,34 +131,51 @@ export function Sidebar(props: { sessionID?: string }): JSX.Element {
   }, QUOTA_REFRESH_MS)
   onCleanup(() => clearInterval(timer))
 
+  // ── 更新检查（状态由本组件持有，便于整块空时零占位） ──
+  // mount 时检查一次；结果经信号驱动，无更新/失败 → undefined
+  const [update, setUpdate] = createSignal<UpdateInfo | undefined>(undefined)
+  const [updateDismissed, setUpdateDismissed] = createSignal(updateDismissedOnce)
+  void checkForUpdate().then((info) => setUpdate(info))
+  const showUpdate = createMemo(() => !updateDismissed() && update() !== undefined)
+  const dismissUpdate = () => {
+    updateDismissedOnce = true
+    setUpdateDismissed(true)
+  }
+
+  // 面板内容：会话用量 或 更新提示；两者皆无 → 整块不渲染（会话初始无事件时零占位）
+  const hasContent = createMemo(() => usage() !== undefined || showUpdate())
+
   return (
-    // 单面板外框：整个插件（会话 + 额度 + 更新横幅）共用一个带边框的盒子
-    <box
-      flexDirection="column"
-      gap={1}
-      border
-      borderColor={BORDER_COLOR}
-      paddingLeft={1}
-      paddingRight={1}
-      paddingTop={0}
-      paddingBottom={0}
-    >
-      <Show when={usage()}>
-        {(u) => (
-          <box flexDirection="column" gap={1}>
-            <UsageSection
-              usage={u()}
-              ctxUsage={ctxUsage()}
-              ctxPct={ctxPct()}
-              limit={limit()}
-              cacheRate={cacheRate()}
-            />
-            <QuotaSection quota={quota()} />
-          </box>
-        )}
-      </Show>
-      {/* 更新提示：不依赖会话数据，放在插件最下方，轻量一行、可关闭 */}
-      <UpdateBanner />
-    </box>
+    // 单面板外框：整个插件（会话 + 额度 + 更新横幅）共用一个带边框的盒子；
+    // 无任何内容时整块不渲染，避免会话初始出现空边框占位
+    <Show when={hasContent()}>
+      <box
+        flexDirection="column"
+        gap={1}
+        border
+        borderColor={BORDER_COLOR}
+        paddingLeft={1}
+        paddingRight={1}
+        paddingTop={0}
+        paddingBottom={0}
+      >
+        <Show when={usage()}>
+          {(u) => (
+            <box flexDirection="column" gap={1}>
+              <UsageSection
+                usage={u()}
+                ctxUsage={ctxUsage()}
+                ctxPct={ctxPct()}
+                limit={limit()}
+                cacheRate={cacheRate()}
+              />
+              <QuotaSection quota={quota()} />
+            </box>
+          )}
+        </Show>
+        {/* 更新提示：不依赖会话数据，放在插件最下方，轻量一行、可关闭 */}
+        <UpdateBanner update={update()} onDismiss={dismissUpdate} />
+      </box>
+    </Show>
   )
 }
