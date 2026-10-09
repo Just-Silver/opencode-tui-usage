@@ -3,6 +3,20 @@
 本仓库所有重要变更记录于此，格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [2.3.1] - 2026-10-09
+
+
+### 修复
+
+- 修复会话初始无事件时空边框占位
+
+### 文档
+
+- 记录 OpenDesign 额度 API 探测结论（API Key 无额度端点）
+
+### 杂项
+
+- 更新 CHANGELOG 到 v2.3.0
 ## [2.3.0] - 2026-10-06
 
 
